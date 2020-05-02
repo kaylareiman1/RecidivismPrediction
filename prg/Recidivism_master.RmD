@@ -1,30 +1,244 @@
 ---
-title: "Recidivism.RmD"
-author: "Group12"
-date: "5/2/2020"
+title: "Recidivism Analysis"
+subtitle: "Heinz College: Data Mining with Dr. Diane Igoche"
+author: "Group 12: Moses Hetfield, Sormeh Yazdi, and Kayla Reiman"
+date: "May 2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# **Start of Team Notes**
+****Delete before turning in****
+#### **Items for discussion**     
+- Overall outline
+- Which methods make sense?
+- Division of tasks
+
+#### **To do list**     
+* **High level of effort**        
+   + Understand the CSVs: Create a data dictionary that tells us which outcome and input variables we should be using from each dataset; also map out how the datasets relate to each other and which we can get rid of (if any). Then explain it to the team and just write about it briefly in 1a.  
+   + **Validation**: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
+* **Medium level of effort**        
+   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation  
+* **Low level of effort**        
+   + Switch to relative path referencing while importing CSVs  
+   + Write more in the introduction  
+
+
+#### **Tasks that can be added to the list once we have a dictionary** 
+
+* **Medium level of effort**
+   + Descriptive analysis (1a-d): start creating pretty plots!
+   + Model Selection and validation (2a.1): run our first model!
+* **High level of effort**
+   + Figure out the best version of a given model (ex. logistic regression) using test/training error
+   + Compare models (ex. logistic regression vs. random forrest)
+   
+#### **Prompt**  
+A) Using the available data, construct a Risk Assessment Instrument (RAI) for predicting two-year recidivism. 
+   - Evaluate the predictive performance of your model. 
+   - What are the most important predictors of recidivism?
+   
+B) Create an RAI for predicting violent recidivism.
+   - Evaluate the predictive performance of your model. 
+   - What are the most important predictors of violent recidivism? 
+   - How do they compare to the important predictors of general recidivism?
+  
+C) Assess whether the RAIs from (A) and (B) are equally predictive across race/ethnicity groups? How about across age and sex groups?
+
+D) Compare your RAIs to the COMPAS RAI. 
+   - Do your RAIs perform better or worse than COMPAS?   
+   - Do your RAIs produce similar classifications to COMPAS? 
+   - Can you identify any systematic differences between your classifications and those of COMPAS? 
+   
+#### **List of resources**
+[Our github repo](https://github.com/kaylareiman1/RecidivismPrediction)  
+[ProPublica main article]( https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
+[ProPublica methodology]( https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
+[ProPublica github]( https://github.com/propublica/compas-analysis)  
+[Raw version of COMPAS survey]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)  
+[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
+[Article on Risk, Race, and Recidivism]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)  
+[Original publication by COMPAS creator]( http://www.northpointeinc.com/files/publications/Criminal-Justice-Behavior-COMPAS.pdf)  
+[Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)  
+[Project description on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4443203)  
+
+
+
+----------------------------------------------------------------------------------------
+# **End of Team Notes**  
+
+
+```{r, warning = FALSE, message = FALSE}
+#Suppressing warnings about libraries
+#Import  libraries (currently overdoing it)
+library(tidyverse)    
+library(ggplot2)      # graphics library
+library(gridExtra)    # For displaying graphs side-by-side
+library(knitr)        # contains knitting control
+library(tree)         # For the tree-fitting 'tree' function
+library(randomForest) # For random forests
+library(rpart)        # For nicer tree fitting
+library(partykit)     # For nicer tree plotting
+library(boot)         # For cv.glm
+library(leaps)        # needed for regsubsets (though maybe not relevant b/c our outcome vars are binary)
+
+
+#Format numbers so that they are not in scientific notation.
+options(scipen = 4)
 ```
 
-## R Markdown
+# **Introduction**
+#### **Background**  
+In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups, as shown in their published table replicated below:    
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+| Type of error                              |           White | African American | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  |            23.5%|            44.9% |
+| Labeled Lower Risk, Yet Did Re-Offend      |            47.7%|            28.0% |
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#### **Additional information on the COMPAS**  
+As the ProPublica authors explained, the COMPAS is widely used across states [add more here from ProPublica article]. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its 137 questions, some of the  questions such as how often people moved can be linked to poverty...[add more here from [Raw version of COMPAS survey] ( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)]
 
-```{r cars}
-summary(cars)
+#### **Goal** 
+Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
+
+
+# **Section 1: Exploratory Data Analysis**
+```{r, message = FALSE}
+
+#Read in all ProPublica datasets
+compas.scores.raw <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-raw.csv")
+compas.scores <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores.csv")
+compas.scores.two.years <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years.csv")
+compas.scores.two.years.violent <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years-violent.csv")
+cox.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-parsed.csv")
+cox.violent.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-violent-parsed.csv")
+
+
+
+#Next step 1 (low LOE): Somebody fix so the file paths aren't just for my local directories. Here are three options in order of how ideal they would be:
+#   The propublica github files
+#   My forked version of the propublica github files:  https://github.com/kaylareiman1/compas-analysis
+#   Our copied and pasted version of the propublica github files: https://github.com/kaylareiman1/RecidivismPrediction/tree/master/datasets
+
+#Next step 2 (high LOE): figure out which of these datasets actually matter and explore them
 ```
 
-## Including Plots
+#### **1a: Dataset Overview**
+This project uses 3 datasets from [ProPublica's github repository] ( https://github.com/propublica/compas-analysis): 
+   
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, message = FALSE}
+#Number of observations & what the row-driver is (i.e. confirm it's 1 person per row)
+#Available variables
+#Missingness
+#Anything else worth adding
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#### **1b: Demographic Characteristics**
+```{r, message = FALSE}
+#Histograms for race, gender, and age breakdown
+```
+
+#### **1c: Recidivism Rates**
+```{r, message = FALSE}
+#Any recidivism
+#Violent recidivism
+```
+
+#### **1d: Compas Predictions**
+```{r, message = FALSE}
+#Univariate distribution of scores for a) any recidivism and b) violent recidivism
+#Bivariate analysis of Compas prediction x Actual outcome
+#Demographic analysis of Compas prediction x Actual outcome x characteristics
+```
+
+# **Section 2: Methodology** 
+Prior to starting the data mining process, we randomly split the data into training and validation sets.
+```{r, message = FALSE}
+#Somebody figure out how we're supposed to do this
+```
+
+#### **2a: Data Mining Methods and Performance**
+#### **2a.1: Model Selection and validation**   
+
+**Possible models**  
+[KR note to team: we may cut some of these if we a) don't have time or b) think they're the wrong models]
+Given our task of predicting binary outcomes, we considered the following classification methods:
+   - Logistic regression:   
+   - Linear Discriminant Analysis (LDA): 
+   - Quad-ratic Discriminant Analysis (QDA): 
+   - Naive Bayes (NB): 
+   - Random Forrest (RF): 
+   
+```{r, message = FALSE}
+#Run these models on training data
+#Run cross-validation on these models
+#Select the best version of each model based on a low CV
+#Output line graphs showing how training and CV error levels work
+```
+
+To decide between models, we looked at three measures of error:
+   -Accuracy: This is the percent of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different.
+    -Specifity: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is the most important measure because it keeps innocent people from receiving harsh punishments.
+   -Sensitivity: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.
+
+  
+**Statistics for the best version of each data mining method**  
+
+| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |
+|--------------------------------------------|----------------|------------------|-------------|
+| Logistic regression                        |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         |                |                  |             |
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
+| Naive Bayes (NB)                           |                |                  |             |
+| Random Forrest (RF)                        |                |                  |             |
+
+| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |
+|--------------------------------------------|----------------|------------------|-------------|
+| Logistic regression                        |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         |                |                  |             |
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
+| Naive Bayes (NB)                           |                |                  |             |
+| Random Forrest (RF)                        |                |                  |             |
+
+
+[KR note: let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
+
+#### **2c: Demographic analysis of the best version of each model:**    
+#### **2c1: Race**    
+#### **2c2: Gender**    
+#### **2c3: Age**    
+Based on this analysis, we chose [] to model overall recidivism and [] to model violent recidivism.
+
+#### **2b: Final model(s)**
+Our final model is....
+This has an accuracy rate of [], specifity of [].
+
+```{r, message = FALSE}
+#Add pretty figures about our final model(s)
+```
+
+
+# **Section 3: Key Findings and Takeaways**
+
+#### **3a**: Comparing our tool to the COMPAS tool** 
+
+#### **3a.1:** Does our RAIs perform better or worse than COMPAS?    
+#### **3a.2:** Do our RAIs produce similar classifications to COMPAS? 
+#### **3a.3:** Are there systematic differences between our classifications and those of COMPAS? 
+
+#### **3b: Reflections on risk assessment tools** 
+Perhaps cite some articles here, like the two that ProPublica cited, or something more recent
+[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
+[Article on Risk, Race, and Recidivism] (https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
+
+May also reflect on Pittsburgh's use of a pre-trial risk assessment tool (I know we use one but don't have details)
+
+# **References**  
+[ProPublica main article] (https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)
+[ProPublica methodology] (https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)
+[ProPublica github] (https://github.com/propublica/compas-analysis) 
+[Raw version of COMPAS survey] (https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)
+
+
