@@ -5,8 +5,24 @@ date: "5/2/2020"
 output: html_document
 ---
 
-Kayla's work from 5.2.2020
 ```{r, message = FALSE}
+#Suppressing warnings about libraries
+#Import  libraries (currently overdoing it)
+library(tidyverse)    
+library(ggplot2)      # graphics library
+library(gridExtra)    # For displaying graphs side-by-side
+library(knitr)        # contains knitting control
+library(tree)         # For the tree-fitting 'tree' function
+library(randomForest) # For random forests
+library(rpart)        # For nicer tree fitting
+library(partykit)     # For nicer tree plotting
+library(boot)         # For cv.glm
+library(leaps)        # needed for regsubsets (though maybe not relevant b/c our outcome vars are binary)
+
+
+#Format numbers so that they are not in scientific notation.
+options(scipen = 4)
+
 ###################################
 # Read in all ProPublica datasets #
 ###################################
@@ -60,7 +76,7 @@ recid.all <- mutate(recid.all, crime_factor = factor(c_charge_degree)) %>%
       within(race_factor <- relevel(race_factor, ref = 3)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
-      mutate(decile_score = factor(score_text != "Low", labels = c("LowScore","HighScore")))
+      mutate(score_factor = factor(score_text != "Low", labels = c("LowScore","HighScore")))
 
 
 ### Violent recidivism ###
@@ -89,7 +105,7 @@ recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
       within(race_factor <- relevel(race_factor, ref = 3)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
-      mutate(decile_score = factor(v_score_text != "Low", labels = c("LowScore","HighScore")))
+      mutate(score_factor = factor(v_score_text != "Low", labels = c("LowScore","HighScore")))
 ```
 
 #Notes based on the ProPublica work
@@ -134,12 +150,13 @@ colnames.all <- colnames(recid.all)
 colnames.vio <- colnames(recid.vio)
 
 #Print full list of columns
-kable(colnames.all, caption = "list of variables in the recid.all dataset")
+colnames.all
 
 
 #Print columns that differ
 colnames.vio[(colnames.vio != colnames.all)]
 colnames.all[(colnames.vio != colnames.all)]
+
 #Check how the recidivism variables relate
 kable(recid.all %>%
   group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
@@ -148,19 +165,26 @@ kable(recid.all %>%
 kable(recid.vio %>%
   group_by (two_year_recid, two_year_recid_1, is_recid, is_violent_recid, violent_recid) %>%
   summarize(count = n()), caption = "How variables relate in recid.vio dataset")
-
-
 ```
 
-# Crime measures
+# Crime Prediction Metrics
 ```{r, warning = FALSE, message = FALSE}
 #Propublica relevant vars: `glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
 
-dec.v.factor.all <- ggplot(recid.all, aes(x=decile_score, fill = score_factor))
-dec.v.factor.vio <- ggplot(recid.vio, aes(x=decile_score, fill = score_factor))
+ranking.all <- ggplot(recid.all, aes(x=decile_score, fill = score_text))+
+  geom_bar(stat = "count", bin = 1) +
+  ggtitle("Prediction Metrics\nAll data") + 
+  xlab("Prediction") + 
+  guides(fill = FALSE) + 
+  ylab("Number of people") 
 
+ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
+  geom_bar(stat = "count", bin = 1) +
+  ggtitle("Prediction Metrics\nViolence data") + 
+  xlab("Prediction")+ 
+  ylab(NULL)
 
-grid.arrange(sex.bi.all.dec, sex.bi.all.recid, ncol = 2)
+grid.arrange(ranking.all, ranking.vio, ncol = 2)
 
 ```
 
@@ -173,12 +197,12 @@ grid.arrange(sex.bi.all.dec, sex.bi.all.recid, ncol = 2)
 ##############
 # Univariate #
 ##############
-sex.uni.all <- ggplot(recid.all, aes(x=sex, fill = sex))
-sex.uni.all + 
+gender_factor.uni.all <- ggplot(recid.all, aes(x=gender_factor, fill = sex))
+gender_factor.uni.all + 
   geom_bar(stat = "count", na.rm = F) + 
-  ggtitle("Univariate Sex Breakdown") + 
+  ggtitle("Univariate Gender Breakdown") + 
   guides(fill = FALSE) + 
-  xlab("Sex") + 
+  xlab("gender") + 
   ylab("Number of Respondents")
 
 #############################
@@ -191,8 +215,7 @@ sex.bi.conf.all <- recid.all %>%
             upper = t.test(decile_score)$conf.int[1],
             lower = t.test(decile_score)$conf.int[2])
 
-sex.bi.all.dec <- ggplot(data = sex.bi.conf.all, aes(x = sex, y = Avgdecile_score,fill = sex)) +
-  geom_bar(stat = "identity") +
+sex.bi.all.dec <- ggplot(data = sex.bi.conf.all, aes(x = sex, y = Avgdecile_score,fill = sex)) +  geom_bar(stat = "identity") +
   xlab("sex") + 
   ylab("Average prediction ($)") +
   ggtitle("Average risk score: \nAny Recidivism") + 
@@ -203,7 +226,7 @@ sex.bi.all.dec <- ggplot(data = sex.bi.conf.all, aes(x = sex, y = Avgdecile_scor
 #Violent
 sex.bi.conf.vio <- recid.vio %>%
   group_by(sex) %>%
-  summarize(Avgdecile_score = mean(decile_score),
+  summarize(Avgdecile_score = mean(v_decile_score),
             upper = t.test(v_decile_score)$conf.int[1],
             lower = t.test(v_decile_score)$conf.int[2])
 
