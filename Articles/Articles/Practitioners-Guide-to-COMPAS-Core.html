@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="ClearType" content="true">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Practitioners-Guide-to-COMPAS-Core</title>
+  
+  <link rel="alternate" type="application/json+oembed" href="https://www.documentcloud.org/api/oembed.json?url=https%3A%2F%2Fwww.documentcloud.org%2Fdocuments%2F2840784-Practitioner-s-Guide-to-COMPAS-Core.html" title="Practitioners-Guide-to-COMPAS-Core">
+
+  <meta name="author" content="Julia Angwin (ProPublica)">
+<!-- Shared by Facebook and Twitter -->
+<meta property="og:title" content="Practitioners-Guide-to-COMPAS-Core">
+<meta property="og:url" content="https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core.html">
+<meta property="og:description" content="Source document contributed to DocumentCloud by Julia Angwin (ProPublica).">
+<meta property="og:image" content="https://assets.documentcloud.org/documents/2840784/pages/Practitioner-s-Guide-to-COMPAS-Core-p1-normal.gif">
+<!-- Relevant to Facebook only -->
+<meta property="og:image:type" content="image/gif">
+<meta property="og:image:width" content="700">
+<!-- Relevant to Twitter only -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="The first page of Practitioners-Guide-to-COMPAS-Core">
+<meta name="twitter:site" content="@documentcloud">
+<meta name="twitter:domain" content="documentcloud.org">
+<meta name="twitter:description" content="Source document contributed to DocumentCloud by Julia Angwin (ProPublica).">
+<meta name="twitter:label1" content="Contributor">
+<meta name="twitter:data1" content="Julia Angwin">
+<meta name="twitter:label2" content="Organization">
+<meta name="twitter:data2" content="ProPublica">
+
+  <!--[if (!IE)|(gte IE 8)]><!-->
+    <link href="Practitioners-Guide-to-COMPAS-Core_files/viewer-datauri.css" media="screen" rel="stylesheet" type="text/css">
+  <!--<![endif]-->
+  <!--[if lte IE 7]>
+    <link href="//assets.documentcloud.org/viewer/viewer.css" media="screen" rel="stylesheet" type="text/css" />
+  <![endif]-->
+  <link href="Practitioners-Guide-to-COMPAS-Core_files/printviewer.css" media="print" rel="stylesheet" type="text/css">
+  <script src="Practitioners-Guide-to-COMPAS-Core_files/viewer.js"></script>
+    <script>
+      window.DV.recordHit = "//www.documentcloud.org/pixel.gif";
+    </script>
+    <meta name="csrf-param" content="authenticity_token">
+<meta name="csrf-token" content="nPH0ZkKe4sz3b03qyxlyBB5TphFM5+KPiUMX3H7iZZwfVxxh2KjrzZaaWv9G0gTEEfUhlhkkYKHoMjVkCxMhYA==">
+  
+<style id="DV-navigationBolds-2" type="text/css" media="screen,print">
+#DV-selectedAnnotation-334028 #DV-annotationMarker-334028 .DV-navAnnotationTitle, #DV-selectedAnnotation-296482 #DV-annotationMarker-296482 .DV-navAnnotationTitle, #DV-selectedAnnotation-296481 #DV-annotationMarker-296481 .DV-navAnnotationTitle { font-weight:bold; color:#000 !important; }
+</style><style type="text/css" media="all">
+.DV-page-1 .DV-pageSpecific-1, .DV-page-2 .DV-pageSpecific-2, .DV-page-3 .DV-pageSpecific-3, .DV-page-4 .DV-pageSpecific-4, .DV-page-5 .DV-pageSpecific-5, .DV-page-6 .DV-pageSpecific-6, .DV-page-7 .DV-pageSpecific-7, .DV-page-8 .DV-pageSpecific-8, .DV-page-9 .DV-pageSpecific-9, .DV-page-10 .DV-pageSpecific-10, .DV-page-11 .DV-pageSpecific-11, .DV-page-12 .DV-pageSpecific-12, .DV-page-13 .DV-pageSpecific-13, .DV-page-14 .DV-pageSpecific-14, .DV-page-15 .DV-pageSpecific-15, .DV-page-16 .DV-pageSpecific-16, .DV-page-17 .DV-pageSpecific-17, .DV-page-18 .DV-pageSpecific-18, .DV-page-19 .DV-pageSpecific-19, .DV-page-20 .DV-pageSpecific-20, .DV-page-21 .DV-pageSpecific-21, .DV-page-22 .DV-pageSpecific-22, .DV-page-23 .DV-pageSpecific-23, .DV-page-24 .DV-pageSpecific-24, .DV-page-25 .DV-pageSpecific-25, .DV-page-26 .DV-pageSpecific-26, .DV-page-27 .DV-pageSpecific-27, .DV-page-28 .DV-pageSpecific-28, .DV-page-29 .DV-pageSpecific-29, .DV-page-30 .DV-pageSpecific-30, .DV-page-31 .DV-pageSpecific-31, .DV-page-32 .DV-pageSpecific-32, .DV-page-33 .DV-pageSpecific-33, .DV-page-34 .DV-pageSpecific-34, .DV-page-35 .DV-pageSpecific-35, .DV-page-36 .DV-pageSpecific-36, .DV-page-37 .DV-pageSpecific-37, .DV-page-38 .DV-pageSpecific-38, .DV-page-39 .DV-pageSpecific-39, .DV-page-40 .DV-pageSpecific-40, .DV-page-41 .DV-pageSpecific-41, .DV-page-42 .DV-pageSpecific-42, .DV-page-43 .DV-pageSpecific-43, .DV-page-44 .DV-pageSpecific-44, .DV-page-45 .DV-pageSpecific-45, .DV-page-46 .DV-pageSpecific-46, .DV-page-47 .DV-pageSpecific-47, .DV-page-48 .DV-pageSpecific-48, .DV-page-49 .DV-pageSpecific-49, .DV-page-50 .DV-pageSpecific-50, .DV-page-51 .DV-pageSpecific-51, .DV-page-52 .DV-pageSpecific-52, .DV-page-53 .DV-pageSpecific-53, .DV-page-54 .DV-pageSpecific-54, .DV-page-55 .DV-pageSpecific-55, .DV-page-56 .DV-pageSpecific-56, .DV-page-57 .DV-pageSpecific-57, .DV-page-58 .DV-pageSpecific-58, .DV-page-59 .DV-pageSpecific-59, .DV-page-60 .DV-pageSpecific-60, .DV-page-61 .DV-pageSpecific-61, .DV-page-62 .DV-pageSpecific-62, .DV-page-63 .DV-pageSpecific-63, .DV-page-64 .DV-pageSpecific-64, .DV-page-65 .DV-pageSpecific-65 { display: block; }
+</style></head>
+<body style="margin:0; padding:0;">
+  <div id="viewer" style="position: relative; height: 750px;"><!--[if lte IE 8]><div class="DV-docViewer DV-clearfix DV-viewDocument DV-ie DV-autoZoom  DV-hideFooter"><![endif]-->
+<!--[if (!IE)|(gte IE 9)]><!--><div class="DV-docViewer DV-clearfix DV-autoZoom  DV-hideFooter DV-searchable DV-viewDocument" style="position: absolute; inset: 0px;"><!-- <![endif]-->
+  
+  <div class="DV-docViewerWrapper">
+  
+    <div class="DV-header">
+  <div class="DV-headerHat">
+    <div class="DV-branding">
+      
+    </div>
+    <div class="DV-title">
+      Practitioners-Guide-to-COMPAS-Core
+    </div>
+  </div>
+
+  <div class="DV-controls">
+    
+    <div class="DV-views">
+      <div class="DV-documentView DV-first"><span class="DV-trigger DV-selected">Document</span></div>
+      <div class="DV-thumbnailsView"><span class="DV-trigger">Pages</span></div>
+      <div style="" class="DV-annotationView"><span class="DV-trigger">Notes</span></div>
+      <div class="DV-textView DV-last"><span class="DV-trigger">Text</span></div>
+    </div>
+
+    <div class="DV-collapsibleControls">
+
+      <div class="DV-searchBox DV-clearfix">
+        <form action="#" method="get" class="DV-searchDocument">
+          <div class="DV-searchInputWrap">
+            <div class="DV-searchInput-cancel"></div>
+            <input class="DV-searchInput placeholder" type="text" autosave="DV-2840784-Practitioner-s-Guide-to-COMPAS-Core" results="10" placeholder="Search" value="Search">
+          </div>
+        </form>
+      </div>
+      
+      <div class="DV-zoomControls">
+        <span class="DV-zoomLabel">Zoom</span>
+        <div class="DV-zoomBox ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 25%;"></span></div>
+      </div>
+      
+    </div>
+    
+  </div>
+
+</div>
+    <div class="DV-docViewer-Container">
+    
+      <div class="DV-searchBarWrapper">
+        <div class="DV-searchBar">
+          <span class="DV-trigger DV-closeSearch">CLOSE</span>
+          <div class="DV-searchPagination DV-foundResult">
+            <div class="DV-searchResults">
+              <span class="DV-resultPrevious DV-trigger">Previous</span>
+              <span class="DV-currentSearchResult"></span>
+              <span class="DV-totalSearchResult"></span>
+              <span> for “<span class="DV-searchQuery"></span>”</span>
+              <span class="DV-resultNext DV-trigger">Next</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+      <div class="DV-pages">
+        <div class="DV-paper">
+          <div class="DV-thumbnails"></div>
+          <div class="DV-pageCollection" style="width: 744px;">
+            <div class="DV-bar" style="height: 60840px;"></div>
+            <div class="DV-allAnnotations"><div class="DV-annotation  DV-firstAnnotation DV-accessPublic " style="top:52px;" id="DV-listAnnotation-334028" rel="aid-334028" data-id="334028">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:67px; height:207px; width:558px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">Pretrial Release Risk Assessment</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="Pretrial Release Risk Assessment">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:207px;">
+      <div class="DV-annotationExcerptImageTop" style="height:207px; width:559px;left:70px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-72px; top:-58px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:207px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-58px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      Northpointe developed a pretrial release risk scale.
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">Northpointe developed a pretrial release risk scale.</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="DV-annotation  DV-accessPublic " style="top:505px;" id="DV-listAnnotation-296482" rel="aid-296482" data-id="296482">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:69px; height:30px; width:550px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">How recidivism is defined</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="How recidivism is defined">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:30px;">
+      <div class="DV-annotationExcerptImageTop" style="height:30px; width:551px;left:72px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-74px; top:-511px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:30px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-511px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      For most of our analysis of COMPAS risk scores, we defined 
+recidivism as a new arrest within two years. We based this decision on 
+Northpointe's practitioners guide, which says that its recidivism score 
+is meant to predict “a new misdemeanor or felony offense within two 
+years of the COMPAS administration date.”
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">For
+ most of our analysis of COMPAS risk scores, we defined recidivism as a 
+new arrest within two years. We based this decision on Northpointe's 
+practitioners guide, which says that its recidivism score is meant to 
+predict “a new misdemeanor or felony offense within two years of the 
+COMPAS administration date.”</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="DV-annotation  DV-lastAnnotation DV-accessPublic " style="top:593px;" id="DV-listAnnotation-296481" rel="aid-296481" data-id="296481">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:69px; height:33px; width:554px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">How risk is defined</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="How risk is defined">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:33px;">
+      <div class="DV-annotationExcerptImageTop" style="height:33px; width:555px;left:72px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-74px; top:-599px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:33px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-599px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      According to Northpointe's practitioner's guide, COMPAS “scores in
+ the medium and high range garner more interest from supervision 
+agencies than low scores, as a low score would suggest there is little 
+risk of general recidivism,” so we considered scores any higher than 
+“low” to indicate a risk of recidivism in our analysis.
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">According
+ to Northpointe's practitioner's guide, COMPAS “scores in the medium and
+ high range garner more interest from supervision agencies than low 
+scores, as a low score would suggest there is little risk of general 
+recidivism,” so we considered scores any higher than “low” to indicate a
+ risk of recidivism in our analysis.</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+            <div class="DV-text">
+              <div class="DV-textSearch DV-clearfix">
+          
+              </div>
+              <div class="DV-textPage" style="width: 700px;">
+                <span class="DV-textCurrentPage"></span>
+                <pre class="DV-textContents" style="width: 656px;"></pre>
+              </div>
+            </div>
+            <div class="DV-set p0 DV-page-28 DV-loaded" data-id="p0" style="top: 25272px; left: 0px; height: 906px; width: 700px;">
+  <div class="DV-overlay"></div>
+  <div class="DV-pageNoteInsert visible" title="Click to Add a Page Note">
+    <div class="DV-annotationTab">
+      <div class="DV-annotationClose"></div>
+    </div>
+    <div class="DV-annotationDivider"></div>
+  </div>
+  <div class="DV-pageMeta"><span class="DV-pageNumber">p. 28</span></div>
+  <div class="DV-annotations"></div>
+  <div class="DV-page" style="height: 906px; width: 700px;">
+    <span class="DV-loading-top">Loading</span>
+    <span class="DV-loading-bottom">Loading</span>
+    <div class="DV-cover" style="width: 700px; height: 906px;"></div>
+    <img class="DV-pageImage" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p28-normal.gif" style="width: 700px; height: 906px;" width="700" height="906">
+  </div>
+</div><div class="DV-set p1 DV-loaded DV-page-29" data-id="p1" style="top: 26208px; left: 0px; height: 906px; width: 700px;">
+  <div class="DV-overlay"></div>
+  <div class="DV-pageNoteInsert visible" title="Click to Add a Page Note">
+    <div class="DV-annotationTab">
+      <div class="DV-annotationClose"></div>
+    </div>
+    <div class="DV-annotationDivider"></div>
+  </div>
+  <div class="DV-pageMeta"><span class="DV-pageNumber">p. 29</span></div>
+  <div class="DV-annotations"></div>
+  <div class="DV-page" style="height: 906px; width: 700px;">
+    <span class="DV-loading-top">Loading</span>
+    <span class="DV-loading-bottom">Loading</span>
+    <div class="DV-cover" style="width: 700px; height: 906px;"></div>
+    <img class="DV-pageImage" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p29-normal.gif" style="width: 700px; height: 906px;" width="700" height="906">
+  </div>
+</div><div class="DV-set p2 DV-loaded DV-page-30" data-id="p2" style="top: 27144px; left: 0px; height: 906px; width: 700px;">
+  <div class="DV-overlay"></div>
+  <div class="DV-pageNoteInsert visible" title="Click to Add a Page Note">
+    <div class="DV-annotationTab">
+      <div class="DV-annotationClose"></div>
+    </div>
+    <div class="DV-annotationDivider"></div>
+  </div>
+  <div class="DV-pageMeta"><span class="DV-pageNumber">p. 30</span></div>
+  <div class="DV-annotations"><div class="DV-annotation  DV-firstAnnotation DV-accessPublic " style="top:52px;" id="DV-annotation-334028" rel="aid-334028" data-id="334028">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:67px; height:207px; width:558px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">Pretrial Release Risk Assessment</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="Pretrial Release Risk Assessment">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:207px;">
+      <div class="DV-annotationExcerptImageTop" style="height:207px; width:559px;left:70px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-72px; top:-58px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:207px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-58px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      Northpointe developed a pretrial release risk scale.
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">Northpointe developed a pretrial release risk scale.</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><div class="DV-annotation  DV-accessPublic " style="top:505px;" id="DV-annotation-296482" rel="aid-296482" data-id="296482">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:69px; height:30px; width:550px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">How recidivism is defined</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="How recidivism is defined">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:30px;">
+      <div class="DV-annotationExcerptImageTop" style="height:30px; width:551px;left:72px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-74px; top:-511px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:30px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-511px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      For most of our analysis of COMPAS risk scores, we defined 
+recidivism as a new arrest within two years. We based this decision on 
+Northpointe's practitioners guide, which says that its recidivism score 
+is meant to predict “a new misdemeanor or felony offense within two 
+years of the COMPAS administration date.”
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">For
+ most of our analysis of COMPAS risk scores, we defined recidivism as a 
+new arrest within two years. We based this decision on Northpointe's 
+practitioners guide, which says that its recidivism score is meant to 
+predict “a new misdemeanor or felony offense within two years of the 
+COMPAS administration date.”</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><div class="DV-annotation  DV-lastAnnotation DV-accessPublic " style="top:593px;" id="DV-annotation-296481" rel="aid-296481" data-id="296481">
+
+  <div class="DV-annotationTab" style="top:8px;">
+    <div class="DV-annotationClose DV-trigger">
+      
+    </div>
+  </div>
+
+  <div class="DV-annotationRegion" style="margin-left:69px; height:33px; width:554px;">
+    <div class="DV-accessPublic">
+      <div class="DV-annotationEdge DV-annotationEdgeTop"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeRight"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeBottom"></div>
+      <div class="DV-annotationEdge DV-annotationEdgeLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerTopRight"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomLeft"></div>
+      <div class="DV-annotationCorner DV-annotationCornerBottomRight"></div>
+    </div>
+    <div class="DV-annotationRegionExclusive"></div>
+  </div>
+
+
+  <div class="DV-annotationContent">
+
+    <div class="DV-annotationHeader DV-clearfix">
+      <div class="DV-pagination DV-editHidden">
+        <span class="DV-trigger DV-annotationPrevious" title="Previous Annotation">Previous</span>
+        <span class="DV-trigger DV-annotationNext" title="Next Annotation">Next</span>
+      </div>
+      <div class="DV-annotationGoto DV-editHidden"><div class="DV-trigger">p. 30</div></div>
+      <div class="DV-annotationTitle DV-editHidden">How risk is defined</div>
+      <input class="DV-annotationTitleInput DV-editVisible" type="text" placeholder="Annotation Title" value="How risk is defined">
+      
+      <span class="DV-permalink DV-editHidden" title="Link to this note"></span>
+      <div class="DV-showEdit DV-editHidden DV-accessPublic"></div>
+    </div>
+
+    <div class="DV-annotationExcerpt" style="height:33px;">
+      <div class="DV-annotationExcerptImageTop" style="height:33px; width:555px;left:72px;">
+
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="left:-74px; top:-599px;" width="700">
+
+      </div>
+      <div class="DV-annotationExcerptImage" style="height:33px;">
+        <img class="DV-img" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="top:-599px;" width="700">
+      </div>
+    </div>
+
+    <div class="DV-annotationBody DV-editHidden">
+      According to Northpointe's practitioner's guide, COMPAS “scores in
+ the medium and high range garner more interest from supervision 
+agencies than low scores, as a low score would suggest there is little 
+risk of general recidivism,” so we considered scores any higher than 
+“low” to indicate a risk of recidivism in our analysis.
+    </div>
+    <textarea class="DV-annotationTextArea DV-editVisible" style="width: 684px;">According
+ to Northpointe's practitioner's guide, COMPAS “scores in the medium and
+ high range garner more interest from supervision agencies than low 
+scores, as a low score would suggest there is little risk of general 
+recidivism,” so we considered scores any higher than “low” to indicate a
+ risk of recidivism in our analysis.</textarea>
+
+    <div class="DV-annotationMeta DV-accessPublic">
+      
+      
+      <div class="DV-annotationEditControls DV-editVisible">
+        <div class="DV-clearfix">
+          <div class="minibutton warn DV-deleteAnnotation float_left">Delete</div>
+          <div class="minibutton default DV-saveAnnotation float_right">
+            
+              Save
+            
+          </div>
+          
+            <div class="minibutton DV-saveAnnotationDraft float_right">Save as Draft</div>
+          
+          <div class="minibutton DV-cancelEdit float_right">Cancel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+  <div class="DV-page" style="height: 906px; width: 700px;">
+    <span class="DV-loading-top">Loading</span>
+    <span class="DV-loading-bottom">Loading</span>
+    <div class="DV-cover" style="width: 700px; height: 906px;"></div>
+    <img class="DV-pageImage" src="Practitioners-Guide-to-COMPAS-Core_files/Practitioner-s-Guide-to-COMPAS-Core-p30-normal.gif" style="width: 700px; height: 906px;" width="700" height="906">
+  </div>
+</div>
+          </div>
+        </div>
+      </div>
+    
+      <div width="265px" class="DV-sidebar">
+        <div class="DV-well">
+    
+          <div class="DV-sidebarSpacer"></div>
+          
+          
+            <div class="DV-navControlsContainer"><div class="DV-navControls DV-clearfix">
+  <span class="DV-trigger DV-previous">«</span>
+  <div class="DV-clearfix DV-pageNumberContainer">
+    <span class="DV-currentPagePrefix">Page</span>
+    <span class="DV-currentAnnotationPrefix">Note&nbsp;</span>
+    <span class="acceptInput-awaitingActivity"><span class="DV-currentPage">29</span><input type="text" class="acceptInput-textField" style="display:none;"></span>
+    <span class="DV-currentPageSuffix">of&nbsp;
+      <span class="DV-totalPages">65</span>
+      <span class="DV-totalAnnotations">3</span>                        
+    </span>
+  </div>
+  <span class="DV-trigger DV-next">»</span>
+</div></div>
+          
+              
+          <div class="DV-navigation" id="">
+            
+  <div class="DV-description">
+    
+    <div class="DV-descriptionHead">
+      Practitioners-Guide-to-COMPAS-Core
+    </div>
+    
+  </div>
+
+
+            <div class="DV-contentsHeader">Contents</div>
+            <div class="DV-chaptersContainer" id=""><div class="DV-annotationMarker" id="DV-annotationMarker-334028">
+  <span class="DV-trigger">
+    <span class="DV-navAnnotationTitle">Pretrial Release Risk Assessment</span>&nbsp;<span class="DV-navPageNumber">p.30</span>
+  </span>
+</div><div class="DV-annotationMarker" id="DV-annotationMarker-296482">
+  <span class="DV-trigger">
+    <span class="DV-navAnnotationTitle">How recidivism is defined</span>&nbsp;<span class="DV-navPageNumber">p.30</span>
+  </span>
+</div><div class="DV-annotationMarker" id="DV-annotationMarker-296481">
+  <span class="DV-trigger">
+    <span class="DV-navAnnotationTitle">How risk is defined</span>&nbsp;<span class="DV-navPageNumber">p.30</span>
+  </span>
+</div></div>
+            <div class="DV-supplemental">
+              
+                <div class="DV-pdfLink"><a target="_blank" href="https://assets.documentcloud.org/documents/2840784/Practitioner-s-Guide-to-COMPAS-Core.pdf">Original Document (PDF) »</a></div>
+              
+              
+                <div class="DV-printNotesLink">
+                  <a target="_blank" href="https://www.documentcloud.org/notes/print?docs[]=2840784">Print Notes »</a>
+                </div>
+              
+              <div class="DV-storyLink" style="display:none">
+                <a target="_blank" href="">Related Article »</a>
+              </div>
+              
+                <div class="DV-contributor">Contributed by: Julia Angwin, ProPublica</div>
+              
+            </div>
+            <div class="DV-logo"><a class="DV-logoLink" href="http://www.documentcloud.org/"></a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="DV-footer">
+  <div class="DV-fullscreenContainer"><div class="DV-fullscreen" title="View Document in Fullscreen"></div>
+</div>
+  <div class="DV-navControlsContainer"><div class="DV-navControls DV-clearfix">
+  <span class="DV-trigger DV-previous">«</span>
+  <div class="DV-clearfix DV-pageNumberContainer">
+    <span class="DV-currentPagePrefix">Page</span>
+    <span class="DV-currentAnnotationPrefix">Note&nbsp;</span>
+    <span class="acceptInput-awaitingActivity"><span class="DV-currentPage">29</span><input type="text" class="acceptInput-textField" style="display:none;"></span>
+    <span class="DV-currentPageSuffix">of&nbsp;
+      <span class="DV-totalPages">65</span>
+      <span class="DV-totalAnnotations">3</span>                        
+    </span>
+  </div>
+  <span class="DV-trigger DV-next">»</span>
+</div></div>
+</div>
+
+    
+  </div>
+  
+  <div class="DV-printMessage">
+    To print the document, click the "Original Document" link to open the original 
+    PDF. At this time it is not possible to print the document with annotations.
+  </div>
+
+<img class="DV-pixelping" alt="" src="Practitioners-Guide-to-COMPAS-Core_files/pixel.gif" width="1" height="1"></div>
+</div>
+  <div id="overlay"></div>
+  <script type="text/javascript">
+      window.currentDocument = DV.load({"id":"2840784-Practitioner-s-Guide-to-COMPAS-Core","title":"Practitioners-Guide-to-COMPAS-Core","access":"public","pages":65,"description":null,"source":null,"created_at":"Fri, 20 May 2016 22:03:05 +0000","updated_at":"Fri, 01 May 2020 08:06:24 +0000","canonical_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core.html","language":"eng","file_hash":"432ae5b99eaef278561a6d95e3bd78fa3476cc79","contributor":"Julia Angwin","contributor_slug":"8858-julia-angwin","contributor_documents_url":"https://www.documentcloud.org/public/search/Account:8858-julia-angwin","contributor_organization":"ProPublica","contributor_organization_slug":"propublica","contributor_organization_documents_url":"https://www.documentcloud.org/public/search/Group:propublica","display_language":"eng","resources":{"pdf":"https://assets.documentcloud.org/documents/2840784/Practitioner-s-Guide-to-COMPAS-Core.pdf","text":"https://assets.documentcloud.org/documents/2840784/Practitioner-s-Guide-to-COMPAS-Core.txt","thumbnail":"https://assets.documentcloud.org/documents/2840784/pages/Practitioner-s-Guide-to-COMPAS-Core-p1-thumbnail.gif","search":"https://www.documentcloud.org/documents/2840784/search.json?q={query}","print_annotations":"https://www.documentcloud.org/notes/print?docs[]=2840784","translations_url":"https://www.documentcloud.org/translations/{realm}/{language}","page":{"image":"https://assets.documentcloud.org/documents/2840784/pages/Practitioner-s-Guide-to-COMPAS-Core-p{page}-{size}.gif","text":"https://www.documentcloud.org/documents/2840784/pages/Practitioner-s-Guide-to-COMPAS-Core-p{page}.txt"},"published_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core.html"},"sections":[],"data":{},"annotations":[{"id":296482,"page":30,"title":"How recidivism is defined","content":"For most of our analysis of COMPAS risk scores, we defined recidivism as a new arrest within two years. We based this decision on Northpointe's practitioners guide, which says that its recidivism score is meant to predict “a new misdemeanor or felony offense within two years of the COMPAS administration date.”","access":"public","location":{"image":"510,635,540,76"},"canonical_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/296482.html","resource_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/296482.js"},{"id":334028,"page":30,"title":"Pretrial Release Risk Assessment","content":"Northpointe developed a pretrial release risk scale.","access":"public","location":{"image":"57,641,264,74"},"canonical_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/334028.html","resource_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/334028.js"},{"id":296481,"page":30,"title":"How risk is defined","content":"According to Northpointe's practitioner's guide, COMPAS “scores in the medium and high range garner more interest from supervision agencies than low scores, as a low score would suggest there is little risk of general recidivism,” so we considered scores any higher than “low” to indicate a risk of recidivism in our analysis.","access":"public","location":{"image":"598,639,631,76"},"canonical_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/296481.html","resource_url":"https://www.documentcloud.org/documents/2840784-Practitioner-s-Guide-to-COMPAS-Core/annotations/296481.js"}]}, {"container":"#viewer","sidebar":true,"responsive":true,"responsiveOffset":0});
+  </script>
+  <noscript>
+    <a href="https://assets.documentcloud.org/documents/2840784/Practitioner-s-Guide-to-COMPAS-Core.pdf">Practitioners-Guide-to-COMPAS-Core (PDF)</a>
+    <br/>
+    <a href="https://assets.documentcloud.org/documents/2840784/Practitioner-s-Guide-to-COMPAS-Core.txt">Practitioners-Guide-to-COMPAS-Core (Text)<a>
+  </noscript>
+
+  
+
+
+</body></html>
