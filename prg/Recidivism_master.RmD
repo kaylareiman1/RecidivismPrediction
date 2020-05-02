@@ -1,24 +1,44 @@
 ---
 title: "Recidivism Analysis"
-subtitle: "Heinz College: Data Mining with Dr. Diane Igoche"
+subtitle: "Course: Data Mining with Dr. Diane Igoche"
 author: "Group 12: Moses Hetfield, Sormeh Yazdi, and Kayla Reiman"
 date: "May 2020"
 output: html_document
 ---
 
-# **Start of Team Notes**
-****Delete before turning in****
-#### **Items for discussion**     
-- Overall outline
-- Which methods make sense?
-- Division of tasks
+# **Team Notes**
+****Delete before turning in****  
+
+#### **Conceptual questions** 
+- How do we decide which classification model(s) to try? Just try as many as we have time for and then compare misclassificaiton rates?
+- How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?
+- What is a cox validation study?
+- Why did ProPublica run their model with the 3-level score as the outcome like this? Also, if it's 3 levels, why are they doing a logistic?
+`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
+- Why are the datasets of violent crimes and regular crimes separate? Why are there different sample sizes? Why can't we just merge them?  
+- Is two_year_recid_1 the outcome variable for violent offenses?
+
+#### **Items for discussion** 
+- Logistics: What's everyone's comfort level with github?  
+   + Basic use (my level) = keep most up-to-date version on here. Text each other to make sure we're not working on the same thing at the same time.  
+   + Advanced use (beyond me) = branches, pull requests, etc.
+   + Preferred method of tracking communal to-do list, if not in RmD?
+- Outline:
+   + Format: following [Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)
+   + How would you like to adjust this overall outline?
+- Which data mining methods do you think make sense (2a.1)? 
+   + Assuming using more is good if we have time, like the GROOMS thing we read
+   + But actually...should we be deciding in advance, and if so how?
+- Division of to-do list
+   + Anyone planning on working before Tuesday? 
+   + Which methods do you understand? (ex. KR just did LDA/QDA HW, but not RF)
 
 #### **To do list**     
-* **High level of effort**        
-   + Understand the CSVs: Create a data dictionary that tells us which outcome and input variables we should be using from each dataset; also map out how the datasets relate to each other and which we can get rid of (if any). Then explain it to the team and just write about it briefly in 1a.  
-   + **Validation**: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
+* **High level of effort**      
+   + Getting to know our data: Figure out which outcome and input variables ProPublica used and which we should be using from each dataset; also map out how the datasets relate to each other and which we can get rid of (if any). Then write about it briefly in 1a.  
+   + Validation: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
 * **Medium level of effort**        
-   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation  
+   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation. You can use the book's section called "4.5 A Comparison of Classification Methods" as a resource.
 * **Low level of effort**        
    + Switch to relative path referencing while importing CSVs  
    + Write more in the introduction  
@@ -32,23 +52,7 @@ output: html_document
 * **High level of effort**
    + Figure out the best version of a given model (ex. logistic regression) using test/training error
    + Compare models (ex. logistic regression vs. random forrest)
-   
-#### **Prompt**  
-A) Using the available data, construct a Risk Assessment Instrument (RAI) for predicting two-year recidivism. 
-   - Evaluate the predictive performance of your model. 
-   - What are the most important predictors of recidivism?
-   
-B) Create an RAI for predicting violent recidivism.
-   - Evaluate the predictive performance of your model. 
-   - What are the most important predictors of violent recidivism? 
-   - How do they compare to the important predictors of general recidivism?
-  
-C) Assess whether the RAIs from (A) and (B) are equally predictive across race/ethnicity groups? How about across age and sex groups?
-
-D) Compare your RAIs to the COMPAS RAI. 
-   - Do your RAIs perform better or worse than COMPAS?   
-   - Do your RAIs produce similar classifications to COMPAS? 
-   - Can you identify any systematic differences between your classifications and those of COMPAS? 
+   + Make pretty pictures about how our models performed (lift charts, ROC curves, sensitivity vs. specificity)
    
 #### **List of resources**
 [Our github repo](https://github.com/kaylareiman1/RecidivismPrediction)  
@@ -89,7 +93,7 @@ options(scipen = 4)
 
 # **Introduction**
 #### **Background**  
-In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups, as shown in their published table replicated below:    
+In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups. This racial bias of the tool is refleected in their their published table replicated below:    
 
 | Type of error                              |           White | African American | 
 |--------------------------------------------|-----------------|------------------|
@@ -97,36 +101,129 @@ In 2016, ProPublica published a [story](https://www.propublica.org/article/machi
 | Labeled Lower Risk, Yet Did Re-Offend      |            47.7%|            28.0% |
 
 #### **Additional information on the COMPAS**  
-As the ProPublica authors explained, the COMPAS is widely used across states [add more here from ProPublica article]. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its 137 questions, some of the  questions such as how often people moved can be linked to poverty...[add more here from [Raw version of COMPAS survey] ( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)]
+The COMPAS is widely used across states [add more here from ProPublica article]. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved can be linked to poverty...[add more here from]
 
+#### **Prompt**  
+* Using the available data, construct a Risk Assessment Instrument (RAI) for predicting two-year recidivism. 
+   - Evaluate the predictive performance of your model. 
+   - What are the most important predictors of recidivism?
+   
+* Create an RAI for predicting violent recidivism.
+   - Evaluate the predictive performance of your model. 
+   - What are the most important predictors of violent recidivism? 
+   - How do they compare to the important predictors of general recidivism?
+  
+* Assess whether the RAIs from (A) and (B) are equally predictive across race/ethnicity groups? How about across age and sex groups?
+
+* Compare your RAIs to the COMPAS RAI. 
+   - Do your RAIs perform better or worse than COMPAS?   
+   - Do your RAIs produce similar classifications to COMPAS? 
+   - Can you identify any systematic differences between your classifications and those of COMPAS? 
+   
 #### **Goal** 
 Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
 
+#### **Data**
+This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, we have adapted their code so that it does not drop any attributes because this would be bad practice for data mining.
 
-# **Section 1: Exploratory Data Analysis**
 ```{r, message = FALSE}
-
-#Read in all ProPublica datasets
+###################################
+# Read in all ProPublica datasets #
+###################################
 compas.scores.raw <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-raw.csv")
+
 compas.scores <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores.csv")
+
 compas.scores.two.years <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years.csv")
+
 compas.scores.two.years.violent <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years-violent.csv")
+
 cox.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-parsed.csv")
+
 cox.violent.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-violent-parsed.csv")
-
-
 
 #Next step 1 (low LOE): Somebody fix so the file paths aren't just for my local directories. Here are three options in order of how ideal they would be:
 #   The propublica github files
 #   My forked version of the propublica github files:  https://github.com/kaylareiman1/compas-analysis
 #   Our copied and pasted version of the propublica github files: https://github.com/kaylareiman1/RecidivismPrediction/tree/master/datasets
 
-#Next step 2 (high LOE): figure out which of these datasets actually matter and explore them
-```
+####################################
+# Adapt ProPublica's Data Cleaning #
+####################################
+#Note: This code is copied directly from ProPublica. Here is why they dropped data:
+      # - dropped if charge date not w/in 30 days  
+      # - Coded the recidivist flag -- is_recid -- to be -1 if could not find a compas case at all.  
+      # - Ordinary traffic offenses removed  
+      # - Filtered the underlying data from Broward county to include:  
+      #   + people who had either recidivated in two years  
+      #   + had at least two years outside of a correctional facility.  
 
-#### **1a: Dataset Overview**
-This project uses 3 datasets from [ProPublica's github repository] ( https://github.com/propublica/compas-analysis): 
-   
+#Unlike ProPublica, we won't be dropping any attributes because that may bias our model.
+### All recidivism ###
+
+#Dropping bad data
+nrow(compas.scores.two.years)
+recid.all <-compas.scores.two.years %>% 
+        filter(days_b_screening_arrest <= 30) %>%
+        filter(days_b_screening_arrest >= -30) %>%
+        filter(is_recid != -1) %>%
+        filter(c_charge_degree != "O") %>%
+        filter(score_text != 'N/A')
+nrow(recid.all)
+
+#Recoding variables
+recid.all$length_of_stay <- as.numeric(as.Date(recid.all$c_jail_out) - as.Date(recid.all$c_jail_in))
+recid.all <- mutate(recid.all, crime_factor = factor(c_charge_degree)) %>%
+      mutate(age_factor = as.factor(age_cat)) %>%
+      within(age_factor <- relevel(age_factor, ref = 1)) %>%
+      mutate(race_factor = factor(race)) %>%
+      within(race_factor <- relevel(race_factor, ref = 3)) %>%
+      mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
+      within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
+      mutate(score_factor = factor(score_text != "Low", labels = c("LowScore","HighScore")))
+
+
+### Violent recidivism ###
+#Dropping bad data
+nrow(compas.scores.two.years.violent)
+recid.vio <- compas.scores.two.years.violent %>% 
+        filter(days_b_screening_arrest <= 30) %>%
+        filter(days_b_screening_arrest >= -30) %>% 
+        filter(is_recid != -1) %>%
+        filter(c_charge_degree != "O") %>%
+        filter(v_score_text != 'N/A')
+nrow(recid.vio)
+
+#Recoding variables
+#KR note: Why is race coded differently? Is there a mistake?
+recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
+      mutate(age_factor = as.factor(age_cat)) %>%
+      within(age_factor <- relevel(age_factor, ref = 1)) %>%
+      mutate(race_factor = factor(race,
+                                  labels = c("African-American", 
+                                             "Asian",
+                                             "Caucasian", 
+                                             "Hispanic", 
+                                             "Native American",
+                                             "Other"))) %>%
+      within(race_factor <- relevel(race_factor, ref = 3)) %>%
+      mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
+      within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
+      mutate(score_factor = factor(v_score_text != "Low", labels = c("LowScore","HighScore")))
+```
+# **Section 1: Exploratory Data Analysis**
+
+
+#### **1a: Overview of datasets**
+This project uses 2 datasets from [ProPublica's github repository]( https://github.com/propublica/compas-analysis), which are described in the table below:
+| Dataset name | original obs | obs after cleaning | # varibles |       
+| recid.all | 7214| 6172 | 59 |    
+| recid.vio | 4743 | 4,020 | 59 |    
+
+An overview of relevant variables is below
+- two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset.
+- 
+
 
 ```{r, message = FALSE}
 #Number of observations & what the row-driver is (i.e. confirm it's 1 person per row)
@@ -137,7 +234,7 @@ This project uses 3 datasets from [ProPublica's github repository] ( https://git
 
 #### **1b: Demographic Characteristics**
 ```{r, message = FALSE}
-#Histograms for race, gender, and age breakdown
+#Histograms for race, gender, and age
 ```
 
 #### **1c: Recidivism Rates**
@@ -156,20 +253,21 @@ This project uses 3 datasets from [ProPublica's github repository] ( https://git
 # **Section 2: Methodology** 
 Prior to starting the data mining process, we randomly split the data into training and validation sets.
 ```{r, message = FALSE}
-#Somebody figure out how we're supposed to do this
+#Somebody figure out how we're supposed to do this. I thought I understood it until we learned about cross-validation, which is better than regular validation. 
 ```
 
 #### **2a: Data Mining Methods and Performance**
-#### **2a.1: Model Selection and validation**   
+**2a.1: Model Selection and validation**   
 
 **Possible models**  
-[KR note to team: we may cut some of these if we a) don't have time or b) think they're the wrong models]
+[KR note to team: we may cut some of these if we a) don't have time or b) think they're the wrong models]  
 Given our task of predicting binary outcomes, we considered the following classification methods:
-   - Logistic regression:   
-   - Linear Discriminant Analysis (LDA): 
-   - Quad-ratic Discriminant Analysis (QDA): 
-   - Naive Bayes (NB): 
+   - Logistic regression: 
+   - Naive Bayes (NB): This works when there is no interaction between predictors.  
+   - Linear Discriminant Analysis (LDA): This works when the interaction between predictors is the same across classes.  
+   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors  
    - Random Forrest (RF): 
+   - K-Nearest Neighbors (KNN):  
    
 ```{r, message = FALSE}
 #Run these models on training data
@@ -205,10 +303,10 @@ To decide between models, we looked at three measures of error:
 
 [KR note: let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
 
-#### **2c: Demographic analysis of the best version of each model:**    
-#### **2c1: Race**    
-#### **2c2: Gender**    
-#### **2c3: Age**    
+**2c: Demographic analysis of the best version of each model:**    
+**2c1: Race**    
+**2c2: Gender**    
+**2c3: Age**    
 Based on this analysis, we chose [] to model overall recidivism and [] to model violent recidivism.
 
 #### **2b: Final model(s)**
@@ -219,26 +317,26 @@ This has an accuracy rate of [], specifity of [].
 #Add pretty figures about our final model(s)
 ```
 
+#### **3b: Reflections on risk assessment tools** 
 
 # **Section 3: Key Findings and Takeaways**
 
 #### **3a**: Comparing our tool to the COMPAS tool** 
 
-#### **3a.1:** Does our RAIs perform better or worse than COMPAS?    
-#### **3a.2:** Do our RAIs produce similar classifications to COMPAS? 
-#### **3a.3:** Are there systematic differences between our classifications and those of COMPAS? 
+**3a.1: Does our RAIs perform better or worse than COMPAS?**    
+**3a.2: Do our RAIs produce similar classifications to COMPAS?** 
+**3a.3: Are there systematic differences between our classifications and those of COMPAS?** 
 
-#### **3b: Reflections on risk assessment tools** 
 Perhaps cite some articles here, like the two that ProPublica cited, or something more recent
 [Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
-[Article on Risk, Race, and Recidivism] (https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
+[Article on Risk, Race, and Recidivism](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
 
-May also reflect on Pittsburgh's use of a pre-trial risk assessment tool (I know we use one but don't have details)
+[May also reflect on Pittsburgh's use of a pre-trial risk assessment tool]
 
 # **References**  
-[ProPublica main article] (https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)
-[ProPublica methodology] (https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)
-[ProPublica github] (https://github.com/propublica/compas-analysis) 
-[Raw version of COMPAS survey] (https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)
+[ProPublica main article](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
+[ProPublica methodology](https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
+[ProPublica github](https://github.com/propublica/compas-analysis)   
+[Raw version of COMPAS survey](https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)
 
 
