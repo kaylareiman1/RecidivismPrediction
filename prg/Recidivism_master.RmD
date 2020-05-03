@@ -17,28 +17,11 @@ output: html_document
 - How did ProPublica decide on a logistic regression using low/high as the outcome?
 `glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
 - Why are the datasets of violent crimes and regular crimes separate? Why are there different sample sizes? Why can't we just merge them?  
-- Confirm the row driver of each dataset
-
-#### **Items for discussion** 
-- Logistics: What's everyone's comfort level with github?  
-   + Basic use (my level) = keep most up-to-date version on here. Text each other to make sure we're not working on the same thing at the same time.  
-   + Advanced use (beyond me) = branches, pull requests, etc.
-   + Preferred method of tracking communal to-do list, if not in RmD?
-- Outline:
-   + Format: following [Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)
-   + How would you like to adjust this overall outline?
-- Which data mining methods do you think make sense (2a.1)? 
-   + Assuming using more is good if we have time, like the GROOMS thing we read
-   + But actually...should we be deciding in advance, and if so how?
-- Division of to-do list
-   + Anyone planning on working before Tuesday? 
-   + Which methods do you understand? (ex. KR just did LDA/QDA HW, but not RF)
 
 #### **To do list**       
 * **High level of effort**      
    + Validation: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
-   + Figure out which models to use
-   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation. You can use the book's section called "4.5 A Comparison of Classification Methods" as a resource.
+   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation. You can use the book's section called "4.5 A Comparison of Classification Methods" as a resource. Then decide which models to use.
 * **Medium level of effort**        
 * **Low level of effort**        
    + Switch to relative path referencing while importing CSVs  
@@ -46,10 +29,9 @@ output: html_document
 
 #### **Tasks for later**   
 * **Medium level of effort**
-   + Descriptive analysis (1a-d): start creating pretty plots!
    + Model Selection and validation (2a.1): run our first model!
 * **High level of effort**
-   + Figure out the best version of a given model (ex. logistic regression) using test/training error
+   + Figure out the best version of a given model (ex. logistic regression) using test/training error and figuring out if we can incorporate sensitivity/specifity in choosing the version of the model.
    + Compare models (ex. logistic regression vs. random forrest)
    + Make pretty pictures about how our models performed (lift charts, ROC curves, sensitivity vs. specificity)
    
@@ -94,7 +76,7 @@ options(scipen = 4)
 
 # **Introduction**  
 #### **Background**    
-In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups. This racial bias of the tool is refleected in their their published table replicated below:      
+In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their their published table replicated below:      
   
 | Type of error                              |           White | African American | 
 |--------------------------------------------|-----------------|------------------|
@@ -125,7 +107,7 @@ The COMPAS is widely used across states [add more here from ProPublica article].
 Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
 
 #### **Data**
-This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, we have adapted their code so that it does not drop any attributes because this would be bad practice for data mining.  
+This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, although we drop the same observations (rows) as they do, we have adapted their code so that it does not drop any attributes (columns) because this would be bad practice for data mining.  
 
 ```{r, message = FALSE}
 ###################################
@@ -207,6 +189,14 @@ recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
       mutate(score_factor = factor(v_score_text != "Low", labels = c("LowScore","HighScore")))
+
+
+
+####################################
+# Split the data?????????????????? #
+####################################
+#Per Saturday's call, maybe this is where we should randomly split the data. If so, we should use a seed so it's the same every time.
+
 ```
 
 # **Section 1: Exploratory Data Analysis**
@@ -222,19 +212,57 @@ This project uses 2 datasets from [ProPublica's github repository]( https://gith
 | recid.all    | 7214         | 6172               | 59         |    
 | recid.vio    | 4743         | 4020               | 59         |    
 
-An overview of relevant variables is below:  
-   - two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset. 
-   - score_factor:
-   - Demographic variables in the prompt: gender_factor, age_factor, race_factor    
-   - Other variables that ProPublica used as covariates: 
-      -crime_factor: felonies vs. misdimeanors [KR: check original vs. within 2 years]
-      -priors_count: prior infractions [KR: learn more about this]
+Out of the 59 variables in each dataset, we first looked at the variables in the logistic that ProPublica ran to see how well recidivism could predict whether somebody was flagged as low-risk. Their code is pasted below:  
+`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
+
+An overview of variables that ProPublica used is below: [KR note: this dictionary could be better.] 
+   - two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset.   
+   - score_factor: the binary variable indicating low risk vs. medium/high risk.
+   - Other covariates: 
+      -gender_factor: male vs. female
+      -age_factor: a 3-level categorical variable for age
+      -race_factor: from the original race variable. As will be shown below, most categories have very few observations.  
+      -crime_factor: felonies vs. misdimeanors
+      -priors_count: prior infractions?
+      
+A list of all of the variables in the dataset is shown below:
+```{r, warning = FALSE, message = FALSE, echo = TRUE}
+
+#It'll be ideal if we can delete this section eventually (or make it prettier). However, I'm leaving this here so you can get to know the data better without running everything from scratch.
+
+colnames.all <- colnames(recid.all)
+colnames.vio <- colnames(recid.vio)
+
+#Print full list of columns
+colnames.all
+
+#Print columns that differ
+colnames.vio[(colnames.vio != colnames.all)]
+colnames.all[(colnames.vio != colnames.all)]
+```
+
+
+Given the multiple posibilities for recidivism outcome variables, the tables below show the checks that were run to determine that two_year_recid is the correct outcome variable to use in both datasets. [KR note: mabe delete this later. But for now, it would be great if somebody can confirm that you agree with this conclusion or decide whether we should create a new variable for violent recidivism or something].  
+
+```{r, warning = FALSE, message = FALSE}
+#Same comment as above: It'll be ideal if we can delete this section eventually (or make it prettier). However, I'm leaving this here so you can get to know the data better without running everything from scratch.
+
+#Check how the recidivism variables relate
+kable(recid.all %>%
+  group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
+  summarize(count = n()), caption = "How variables relate in recid.all dataset")
+
+kable(recid.vio %>%
+  group_by (two_year_recid, two_year_recid_1, is_recid, is_violent_recid, violent_recid) %>%
+  summarize(count = n()), caption = "How variables relate in recid.vio dataset")
+```
 
 #### **1b: Demographic Characteristics**
 **Note: These graphs use the full dataset (not limited to violent crime)**
 The univariate graphs below show that the most categories in the dataset were men, black people, and those between the age of of 20 and 45.
 ```{r, message = FALSE}
 
+#These three graphs are identical, except with different input variables.
 gender_factor.uni.all <- ggplot(recid.all, aes(x=gender_factor))
 gender_factor.uni.all + 
   geom_bar(stat = "count", na.rm = F) + 
@@ -261,7 +289,7 @@ age_factor.uni.all +
 
 ```
 
-#### **1c: Recidivism Rates**
+#### **1c: Recidivism Rates**  
 The table below shows how common two-year recidivism of both types was in our dataset.
 ```{r, message = FALSE}
 rate.all <- recid.all %>%
@@ -275,12 +303,12 @@ rate.vio <- recid.vio %>%
 | All recidivism (recid.all)             | `r rate.all`%|
 | Violent recidivism (recid.vio)         | `r rate.vio`%|
 
-#### **1d: Compas Predictions**
-The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable (low, not-low).  
+#### **1d: COMPAS Predictions**
+The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable called score_factor with two categories.  
 
 ```{r, warning = FALSE, message = FALSE}
-#Propublica relevant vars: `glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
 
+#Create histograms of decile scores for all crime, color coded by the category. 
 ranking.all <- ggplot(recid.all, aes(x=decile_score, fill = score_text))+
   geom_bar(stat = "count", bin = 1) +
   ggtitle("Prediction Metrics\nAll data") + 
@@ -288,6 +316,7 @@ ranking.all <- ggplot(recid.all, aes(x=decile_score, fill = score_text))+
   guides(fill = FALSE) + 
   ylab("Number of people") 
 
+#Note that v_score_text and v_decile_score are different from decile_score and score_text
 ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
   geom_bar(stat = "count", bin = 1) +
   ggtitle("Prediction Metrics\nViolence data") + 
@@ -295,18 +324,19 @@ ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
   ylab(NULL)
 
 grid.arrange(ranking.all, ranking.vio, ncol = 2)
-
 ```
 
 #### **1e: Accuracy of Predictions by Demographic Group**
 [KR note to team: I actually expected these wouldn't look alike at all. But by the time I finished this, I'd spent so much time adapting code from our good ol' NLSY project that now I want to keep them.]
-Initial data exploration showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:
-   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing [cite Michelle Alexander].
-   - This includes no interactions between terms demographic characteristics (ex. race and gender)
-   - As ProPublica pointed out, these charts do not differentiate between false positives and false negatives. 
+Initial data exploration showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
+   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing [cite Michelle Alexander].  
+   - This includes no interactions between terms demographic characteristics (ex. race and gender)  
+   - As ProPublica pointed out, these charts do not differentiate between false positives and false negatives.   
+   
+Additionally, we already know from the univariate race graphs that the recidivism rates for groups other than White, Hispanic, and African-American people will be distorted by a small sample size. [KR note: perhaps we should drop these obs or create a new race var?]
 
 ```{r, warning = FALSE, message = FALSE}
-#Note -- just copying and pasting different characteristics. Could create a function instead.
+#Note -- just copying and pasting same charts for different characteristics. Could create a function instead. Also, note that I only ran this for recid.all because running it for recid.vio seemed like too many charts. 
 
 ### gender_factor ###
 # Bivariate w/ decile score 
@@ -404,18 +434,17 @@ age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_fac
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
   theme(text = element_text(size=12))
 
+#Display the predictions versus actual recidivism rate averages
 grid.arrange(gender_factor.bi.all.dec, gender_factor.bi.all.recid, ncol = 2)
 grid.arrange(race_factor.bi.all.dec, race_factor.bi.all.recid, ncol = 2)
 grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
-
-
 
 ```
 
 # **Section 2: Methodology** 
 Prior to starting the data mining process, we randomly split the data into training and validation sets.  
 ```{r, message = FALSE}
-#Somebody figure out how we're supposed to do this. I thought I understood it until we learned about cross-validation, which is better than regular validation. 
+#Somebody figure out how we're supposed to do this. I thought I understood it until we learned about cross-validation, which is better than regular validation. Also, should we do it here or before EDA? 
 ```
 
 #### **2a: Data Mining Methods and Performance**
@@ -424,28 +453,33 @@ Prior to starting the data mining process, we randomly split the data into train
 **Possible models**  
 [KR note to team: we may cut some of these if we a) don't have time or b) think they're the wrong models]  
 Given our task of predicting binary outcomes, we considered the following classification methods:  
-   - Logistic regression:   
+   - Logistic regression:     
    - Naive Bayes (NB): This works when there is no interaction between predictors.  
-   - Linear Discriminant Analysis (LDA): This works when the interaction between predictors is the same across classes.  
-   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors  
+   - Linear Discriminant Analysis (LDA): This works when the interaction between predictors is the same across classes.    
+   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors    
    - Random Forrest (RF): 
-   - K-Nearest Neighbors (KNN):  
-   
+   - Classification Tree: Although not as trustworthy as random forrest, the potential for public transparency makes this worth trying.  
+   - K-Nearest Neighbors (KNN):    
+  
+We then decided to pursue [which models should we use?] 
 ```{r, message = FALSE}
 #Run these models on training data
 #Run cross-validation on these models
 #Select the best version of each model based on a low CV
-#Output line graphs showing how training and CV error levels work
+  #Update after meeting: could we actually decide based on high specificity/sensitivity, or is that not legit?
+#Output line graphs showing how training and CV error levels work (I think this is a crucial part of the prompt)
+
+#Update after meeting: perhaps first run w/o including race, but then in the discussion section, re-run the final models including race and see if they become less racist?
 ```
 
 To decide between models, we looked at three measures of error:
-   -Accuracy: This is the percent of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different.
-    -Specifity: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is the most important measure because it keeps innocent people from receiving harsh punishments.
-   -Sensitivity: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.
+   -Accuracy: This is the percent of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different.  
+    -Specifity: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is the most important measure because it keeps innocent people from receiving harsh punishments.  
+   -Sensitivity: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.  
 
   
 **Statistics for the best version of each data mining method**    
-[fill this in once we've run the models]  
+[fill this in once we've run the models -- this is just a template]  
 
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |
 |--------------------------------------------|----------------|------------------|-------------|
@@ -464,9 +498,11 @@ To decide between models, we looked at three measures of error:
 | Random Forrest (RF)                        |                |                  |             |
 
 
-[KR note: let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
+[Let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
 
 **2c: Demographic analysis of the best version of each model:**  
+After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
+[If possible, maybe create some charts comparing models on accuracy vs. prejudice tradeoffs]
 
 **2c1: Race**  
 
@@ -476,7 +512,7 @@ To decide between models, we looked at three measures of error:
 
 #### **2b: Final model(s)**
 Our final model is....
-This has an accuracy rate of [], specifity of [].
+This has an accuracy rate of [], specifity of []. We chose it because...
 
 ```{r, message = FALSE}
 #Add pretty figures about our final model(s)
@@ -486,18 +522,20 @@ This has an accuracy rate of [], specifity of [].
 
 #### **3a: Comparing our tool to the COMPAS tool** 
 
-**3a.1: Does our RAIs perform better or worse than COMPAS?**    
-**3a.2: Do our RAIs produce similar classifications to COMPAS?** 
-**3a.3: Are there systematic differences between our classifications and those of COMPAS?** 
+**3a.1: Does our RAIs perform better or worse than COMPAS?**      
+**3a.2: Do our RAIs produce similar classifications to COMPAS?**   
+**3a.3: Are there systematic differences between our classifications and those of COMPAS?**   
 
-#### **3b: Reflections on risk assessment tools** 
-We know that arrest data is biased based on where police patrol, so even a model that's interally sound is still based on biased data.[maybe cite Patrick Ball]
+#### **3b: Reflections on risk assessment tools**   
+- We know that arrest data is biased based on where police patrol, so even a model that's interally sound is still based on biased data.[maybe cite Patrick Ball]
+- Pittsburgh has a pre-trial risk assessment tool
+- Models can be racist without using race as an input...[maybe add more about our research]
+- Black box vs. accessibility  
 
 Perhaps cite some articles here, like the two that ProPublica cited, or something more recent
 [Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
 [Article on Risk, Race, and Recidivism](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
 
-[May also reflect on Pittsburgh's use of a pre-trial risk assessment tool]
 
 # **References**  
 [ProPublica main article](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
