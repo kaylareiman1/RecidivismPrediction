@@ -68,7 +68,11 @@ library(rpart)        # For nicer tree fitting
 library(partykit)     # For nicer tree plotting
 library(boot)         # For cv.glm
 library(leaps)        # needed for regsubsets (though maybe not relevant b/c our outcome vars are binary)
-
+library(plotly)
+library(rsample)      # data splitting, just trying to see if works (for naive bayes)
+library(dplyr)        # data transformation, just trying to see if works (naive bayes)
+library(caret)        # naive bayes package
+library(h2o)          # naive bayes package
 
 #Format numbers so that they are not in scientific notation.
 options(scipen = 4)
@@ -460,7 +464,146 @@ Given our task of predicting binary outcomes, we considered the following classi
    - Random Forrest (RF): 
    - Classification Tree: Although not as trustworthy as random forrest, the potential for public transparency makes this worth trying.  
    - K-Nearest Neighbors (KNN):    
-  
+
+**Sormeh Attempts Logistic Regression**
+```{r, message=FALSE}
+## Going to try with all of the factors for now, and then I will be more selective
+## working with dataset = recid.all
+#glm.fits = glm(two_year_recid ~age_factor+race_factor+gender_factor+crime_factor+age, data=recid.all, family=binomial)
+glm.fits = glm(two_year_recid ~age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all, family=binomial)
+#glm.fits = glm(two_year_recid ~ race_factor+gender_factor+crime_factor+age, data=recid.all, family=binomial)
+summary(glm.fits)
+
+## To just see the coefficients
+summary(glm.fits)$coef[,4]
+```
+```{r, message=FALSE}
+## Create random training set and testing set
+## adding a column of random 0 and 1s 
+recid.all$is.test <- sample(c(0,1), size = nrow(recid.all), replace=TRUE)
+
+## Partition recid.all data
+recid.all.train <- subset(recid.all, subset = is.test == 0)
+recid.all.test <- subset(recid.all, subset = is.test == 1)
+```
+
+
+``````{r, message=FALSE}
+## Predict function to predict the probability that someone will have recidivated in 2 years
+## type="response" tells R to output probabilities of the form P(Y=1|X)
+print("Predicing two_year_recid:")
+glm.probs = predict(glm.fits, type="response")
+glm.probs[1:10]
+#contrasts(two_year_recid) ## this does not work for some reason...
+p <- ggplot(data = recid.all, aes(two_year_recid, fill = as.factor(glm.fits$y))) +
+  geom_histogram(binwidth = 1)
+
+ggplotly(p)
+```
+```{r, message=FALSE}
+## Trying again but just with training data
+## Predict function to predict the probability that someone will have recidivated in 2 years
+## type="response" tells R to output probabilities of the form P(Y=1|X)
+print("Predicing two_year_recid **Training Data**:")
+glm.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all.train, family = binomial)
+summary(glm.logit)
+kable(coef(summary(glm.logit)), digits= 3)
+glm.probs = predict(glm.logit, type="response")
+glm.probs[1:10]
+
+#contrasts(two_year_recid) ## this does not work for some reason...
+p <- ggplot(data = recid.all.train, aes(two_year_recid, fill = as.factor(glm.logit$y))) +
+  geom_histogram(binwidth = 1)
+
+ggplotly(p)
+
+```
+
+```{r,message=FALSE}
+#spam.logit
+glm.probs = predict.glm(glm.logit, type="response")
+confusion.glm = ifelse(glm.probs > 0.5, "1", "0")
+conf.train.pred = table(confusion.glm, recid.all.train$two_year_recid)
+conf.train.pred
+
+#recid.test.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+age, data=recid.all.test, family=binomial)
+recid.test.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all.test, family=binomial)
+
+glm.probs = predict.glm(recid.test.logit, type="response")
+conf.test.glm = ifelse(glm.probs > 0.5, "1", "0")
+conf.test.pred = table(conf.test.glm, recid.all.test$two_year_recid)
+conf.test.pred
+
+# Misclassification
+print("Train Misclassification:")
+1- sum(diag(conf.train.pred)) / sum(conf.train.pred)
+print("Test Misclassification:")
+1-sum(diag(conf.test.pred)) / sum(conf.test.pred)
+```
+```{r, message = FALSE}
+### COME BACK TO ME!!!
+print("Come back here for editing...trying to plot the additive logistic models from homework 4 problem 3")
+#recid.formula <- formula(paste("two_year_recid ~ ", paste("s(", varinfo[,1], ", 4)", sep = "", collapse= " + ")))
+# Edit me
+
+#recid.gam <- gam(recid.formula, data=recid.all.train, family = binomial)
+#summary(recid.gam)
+
+#par(mfrow=c(15,4))
+#plot(recid.gam, se=T, col="ForestGreen")
+
+```
+**Sormeh Attempts Naive Bayes**
+Could not find how we did this in lab, so following tutorial at uc-r.github.io/naive_bayes
+```{r, message = FALSE}
+## Create training (70%) and test (30%) sets for the attrition data
+## Use set.seed for reproducibility
+
+set.seed(123)
+split <- initial_split(recid.all, prop = .7, strata = "two_year_recid")
+train <- training(split)
+test <- testing(split)
+
+## Distribution of two_year_recid rates across train and test set
+print("Training set distribution:")
+table(train$two_year_recid) %>% prop.table
+print("Testing set distribution:")
+table(test$two_year_recid) %>% prop.table
+
+```
+Bayesian probability incorporates the concept of conditional probability, the probability of event A given that event B has occurred [denoted as P(A|B)]. In the context of our data, we are seeking the probability of an individual belonging to two_year_recid = 1, given that its predictor values are [..... something]
+Here's a plot that attempts to show correlation among variables. It is different from the way we've typically done it in class
+```{r, message = FALSE}
+## I guess this is a different way of seeing if variables are correlated with one another??
+train %>%
+  filter(two_year_recid == 1) %>%
+  select_if(is.numeric) %>%
+  cor() %>%
+  corrplot::corrplot()
+
+```
+Using caret package for Naive Bayes
+Running into trouble here...
+```{r, message = FALSE}
+##Ok, I'm not sure why it asks to make features data, but it says to create response and feature data
+features <- setdiff(names(train), "two_year_recid")
+x <- train[, features]
+y <- train$two_year_recid
+#x <- as.factor(x)
+#y <- as.factor(y)
+
+## set up 10-fold cross validation procedure
+train_control <- trainControl(method = "cv", number = 10)
+
+## train model
+nb.m1 <- train(x = x, y = y, method = "nb", trControl = train_control)
+
+## results
+confusionMatrix(nb.m1)
+
+
+
+
 We then decided to pursue [which models should we use?] 
 ```{r, message = FALSE}
 #Run these models on training data
