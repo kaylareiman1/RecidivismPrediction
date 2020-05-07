@@ -10,21 +10,39 @@ output: html_document
 ****Delete this notes section eventually****  
 
 #### **Outstanding conceptual questions** 
-- How do we decide which classification model(s) to try? Just try as many as we have time for and then compare misclassificaiton rates?
-- How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?
-- How do we deal with the 59 variables, given that it's bad data mining practice to drop anything?
-- What is a cox validation study?
-- How did ProPublica decide on a logistic regression using low/high as the outcome?
-`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
-- Why are the datasets of violent crimes and regular crimes separate? Why are there different sample sizes? Why can't we just merge them?  
+- How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?  
+-Do we split data into 3: train, CV for k-fold, and test for comparing accross models?    
+  + train for first models   
+  + CV for choosing best accuracy   
+  + test for comparing models when we care about FPR vs. FNR  
+  + Related: How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?  
+  + Related as well: do we use the same break for all types of models? Or redo for each model?  
+- How do we decide which classification model(s) to try? Just try as many as we have time for and then compare misclassificaiton rates?  
+-Can we do the same stepwise forward/backward stuff to choose variables to include in logistic model?  
+- GLM: what are all the components that make it general?  
+- Is it worth spending time on the raw data instead of trusting ProPublica's cleaning?
+
+**data questions**
+- What is jouvenile other count?  
+- Confirming: 1 row per person
+-Does violent mean original crime or later?  
+- How did ProPublica decide on a logistic regression using low/high as the outcome?  
+`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`    
+- Why are the datasets of violent crimes and regular crimes separate in this way?
+- Is NB a reasonable model to use in this  scenario? If so, can you help us troubleshoot Sormeh's code? If not, we're inclined to cut it. 
+- To confirm, are ROC and Lift charts for both choosing model and choosing between model?
+- Decision trees: will you release answers for HW 5?
+- c_charge_degree: clean into factor with "other"? 
 
 #### **To do list**       
-* **High level of effort**      
    + Validation: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
    + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation. You can use the book's section called "4.5 A Comparison of Classification Methods" as a resource. Then decide which models to use.
-* **Medium level of effort**        
-* **Low level of effort**        
-   + Switch to relative path referencing while importing CSVs  
+   + Do the decision tree
+   + Do the random forrest
+   + Moses: write up all the steps of choosing vars when you have a chance so it's part of the deliverable; learn how to do branch stuff and teach the rest of us at 6pm
+   + Kayla: spend more time looking at code
+   + Sormeh: figure out how one is supposed to choose variables in the logistic regression and send us what you have before doc appt. 
+
 
 
 #### **Tasks for later**   
@@ -52,7 +70,7 @@ output: html_document
 
 ```{r global_options, include=FALSE}
 #This code chunk sets up the HTML output to not show code by default.  
-knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+#knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
 ```{r, warning = FALSE, message = FALSE}
@@ -73,6 +91,7 @@ library(rsample)      # data splitting, just trying to see if works (for naive b
 library(dplyr)        # data transformation, just trying to see if works (naive bayes)
 library(caret)        # naive bayes package
 library(h2o)          # naive bayes package
+library(MASS)         # For LDA
 
 #Format numbers so that they are not in scientific notation.
 options(scipen = 4)
@@ -596,15 +615,98 @@ y <- train$two_year_recid
 train_control <- trainControl(method = "cv", number = 10)
 
 ## train model
-nb.m1 <- train(x = x, y = y, method = "nb", trControl = train_control)
+#nb.m1 <- train(x = x, y = y, method = "nb", trControl = train_control)
 
 ## results
-confusionMatrix(nb.m1)
+#confusionMatrix(nb.m1)
+```
+Moses work:
+
+```{r}
+#Choosing variables
+recid.subsets <- regsubsets(as.factor(two_year_recid) ~
+                              crime_factor +
+                              age +
+                              age_factor +
+                              race_factor +
+                              gender_factor +
+                              log2(priors_count + 1) +
+                              priors_count +
+                              juv_fel_count +
+                              (juv_fel_count > 0) +
+                              juv_misd_count +
+                              (juv_misd_count > 0) +
+                              juv_other_count,
+                            data = recid.all,
+                            nbest = 1,
+                            nvmax = 15,
+                            method = "exhaustive")
+plot(x = summary(recid.subsets)$adjr2, xlab = "Number of Variables", ylab = "Adj. R-Squared")
+maxr2 <- which.max(summary(recid.subsets)$adjr2)
+points(maxr2, summary(recid.subsets)$adjr2[maxr2], col = "red", cex = 1, pch = 20)
+```
+LDA work
+
+```{r}
+#LDA
+#crime_factor, race_factor, and juv_other_count slightly improve the model & increase specificity (at the expense of sensitivity) - should we include them??
+#
+#without:                 acc = 67.8, sens = 60.6, spec = 73.9   DOMINATED BY EXCL. RACE, EXCL. CRIME
+#all three:               acc = 68.1, sens = 60.4, spec = 74.5   Probably overfit
+#exclude race_factor:     acc = 68.1, sens = 60.7, spec = 74.3   Highest sensitivity, accuracy
+#exclude juv_other_count: acc = 67.9, sens = 60.0, spec = 74.5   DOMINATED BY INCL. JUV, ALL THREE
+#exclude crime_factor:    acc = 68.0, sens = 60.6, spec = 74.2   DOMINATED BY EXCL. RACE
+#include race_factor:     acc = 67.9, sens = 60.0, spec = 74.4   DOMINATED BY EXCL. JUV, ALL THREE
+#include juv_other_count: acc = 68.0, sens = 60.1, spec = 74.6   Strong, high-specificity
+#include crime_factor:    acc = 67.9, sens = 59.8, spec = 74.7   Highest specificity
+
+recid.lda <- lda(two_year_recid ~
+                   #crime_factor +
+                   age +
+                   (age_factor == "Less than 25") +
+                   #race_factor +
+                   gender_factor +
+                   #juv_other_count +
+                   log2(priors_count + 1),
+                 data = recid.all)
+                 #subset = train.all)
+#How do I get it to predict the test set?
+recid.lda.pred <- predict(recid.lda,
+                          type = "response")
+lda.tab = table(predicted = recid.lda.pred$class,
+                actual = recid.all$two_year_recid)
+lda.tab
+lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
+lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
+lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
+tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
+       Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
+       Specificity = scales::percent(lda.spec, accuracy = 0.1))
+```
+
+```{r}
+recid.qda <- qda(two_year_recid ~
+                   #crime_factor +
+                   age +
+                   (age_factor == "Less than 25") +
+                   gender_factor +
+                   log2(priors_count + 1),
+                 data = recid.all)
+recid.qda.pred <- predict(recid.qda,
+                          type = "response")
+qda.tab = table(predicted = recid.qda.pred$class,
+                actual = recid.all$two_year_recid)
+qda.tab
+qda.acc <- (qda.tab[1,1] + qda.tab[2,2]) / sum(qda.tab)
+qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
+qda.spec <- qda.tab[1,1] / sum(qda.tab[,1])
+tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
+       Sensitivity = scales::percent(qda.sens, accuracy = 0.1),
+       Specificity = scales::percent(qda.spec, accuracy = 0.1))
+```
 
 
-
-
-We then decided to pursue [which models should we use?] 
+We then decided to pursue [which models should we use?]
 ```{r, message = FALSE}
 #Run these models on training data
 #Run cross-validation on these models
