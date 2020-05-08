@@ -9,19 +9,6 @@ output: html_document
 # **Team Notes**
 ****Delete this notes section eventually****  
 
-#### **Outstanding conceptual questions** 
-- How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?  
--Do we split data into 3: train, CV for k-fold, and test for comparing accross models?    
-  + train for first models   
-  + CV for choosing best accuracy   
-  + test for comparing models when we care about FPR vs. FNR  
-  + Related: How does the video about the importance of splitting the data before starting relate to K-fold CV, which we learned about next as the better alternative?  
-  + Related as well: do we use the same break for all types of models? Or redo for each model?  
-- How do we decide which classification model(s) to try? Just try as many as we have time for and then compare misclassificaiton rates?  
--Can we do the same stepwise forward/backward stuff to choose variables to include in logistic model?  
-- GLM: what are all the components that make it general?  
-- Is it worth spending time on the raw data instead of trusting ProPublica's cleaning?
-
 **data questions**
 - What is jouvenile other count?  
 - Confirming: 1 row per person
@@ -205,10 +192,6 @@ recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
       mutate(score_factor = factor(v_score_text != "Low", labels = c("LowScore","HighScore")))
-####################################
-# Split the data?????????????????? #
-####################################
-#Per Saturday's call, maybe this is where we should randomly split the data. If so, we should use a seed so it's the same every time.
 ```
 
 # **Section 1: Exploratory Data Analysis**
@@ -227,7 +210,7 @@ This project uses 2 datasets from [ProPublica's github repository]( https://gith
 Out of the 59 variables in each dataset, we first looked at the variables in the logistic that ProPublica ran to see how well recidivism could predict whether somebody was flagged as low-risk. Their code is pasted below:  
 `glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
 
-An overview of variables that ProPublica used is below: [KR note: this dictionary could be better.] 
+An overview of variables that ProPublica used is below: 
    - two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset.   
    - score_factor: the binary variable indicating low risk vs. medium/high risk.
    - Other covariates: 
@@ -235,7 +218,7 @@ An overview of variables that ProPublica used is below: [KR note: this dictionar
       -age_factor: a 3-level categorical variable for age
       -race_factor: from the original race variable. As will be shown below, most categories have very few observations.  
       -crime_factor: felonies vs. misdimeanors
-      -priors_count: prior infractions?
+      -priors_count: prior infractions
       
 A list of all of the variables in the dataset is shown below:
 ```{r, warning = FALSE, message = FALSE, echo = TRUE}
@@ -250,10 +233,10 @@ colnames.all[(colnames.vio != colnames.all)]
 ```
 
 
-Given the multiple posibilities for recidivism outcome variables, the tables below show the checks that were run to determine that two_year_recid is the correct outcome variable to use in both datasets. [KR note: mabe delete this later. But for now, it would be great if somebody can confirm that you agree with this conclusion or decide whether we should create a new variable for violent recidivism or something].  
+Given the multiple posibilities for recidivism outcome variables, the tables below show the checks that were run to determine that two_year_recid is the correct outcome variable to use in both datasets. These checks also helped us determine that the ProPublica's "violent recidivsm" dataset was a subset of the "all recidivism" dataset. Therefore, the rest of our project uses dataset for all recidivism - nicknamed recid.all.  
 
 ```{r, message = FALSE}
-#Same comment as above: It'll be ideal if we can delete this section eventually (or make it prettier). However, I'm leaving this here so you can get to know the data better without running everything from scratch.
+
 #Check how the recidivism variables relate
 kable(recid.all %>%
   group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
@@ -427,10 +410,12 @@ grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
 ```
 
 # **Section 2: Methodology** 
+**Splitting Data**
 Prior to starting the data mining process, we randomly split the data into training and validation sets. 
 
-Here we create a column `is.cv` where `train.dat` is a subset of the data whose is.cv value is 0 (70% of the recid.all dataset); `cv.dat` is a subset of the data whose is.cv value is 2 (20% of the recid.all dataset); and `test.dat` is a subset of the data whose is.cv value is 1 (10% of the recid.all dataset):
+Here we create a column `is.cv` where `train.dat` is a subset of the data whose is.cv value is 0 (70% of the recid.all dataset); `cv.dat` is a subset of the data whose is.cv value is 2 (20% of the recid.all dataset); and `test.dat` is a subset of the data whose is.cv value is 1 (10% of the recid.all dataset). Using the `sample` function in r ensures this division is random, and we have set a seed at 1 so that the random division will give the same results when the code is re-run. 
 ```{r, message = FALSE}
+set.seed(1)
 recid.all$is.cv <- sample(c(0,1,2), size = nrow(recid.all), replace=TRUE, prob = c(0.7, 0.1, 0.2))
 prop.table(table(recid.all$is.cv))
 
@@ -439,30 +424,19 @@ cv.dat <- subset(recid.all, subset = is.cv == 2)
 test.dat <- subset(recid.all, subset = is.cv == 1)
 ```
 
+**Splitting Data**
+
 #### **2a: Data Mining Methods and Performance**
 **2a.1: Model Selection and validation**   
-
 **Possible models**  
-[KR note to team: we may cut some of these if we a) don't have time or b) think they're the wrong models]  
-Given our task of predicting binary outcomes, we considered the following classification methods:  
-   - Logistic regression:     
-   - Naive Bayes (NB): This works when there is no interaction between predictors.  
+Given our task of predicting binary outcomes, we decided to pursue the following methods:  
+   - Logistic regression:  This classification method applies statistical principles to  predicting binary outcomes.     
    - Linear Discriminant Analysis (LDA): This works when the interaction between predictors is the same across classes.    
-   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors    
-   - Random Forest (RF):  
+   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors.    
+   - Random Forest (RF):  This allows for using if/then logic to create decision trees and then combining them.  
    - Classification Tree: Although not as trustworthy as random forest, the potential for public transparency makes this worth trying.  
-   - K-Nearest Neighbors (KNN):    
   
-We then decided to pursue [which models should we use?] 
-```{r, message = FALSE}
-#Run these models on training data
-#Run cross-validation on these models
-#Select the best version of each model based on a low CV
-  #Update after meeting: could we actually decide based on high specificity/sensitivity, or is that not legit?
-#Output line graphs showing how training and CV error levels work (I think this is a crucial part of the prompt)
-
-#Update after meeting: perhaps first run w/o including race, but then in the discussion section, re-run the final models including race and see if they become less racist?
-```
+Note: We chose LDA over Naive Bayes because of expected interactions between our predictors.  
 
 PCA first attempted work by Moses:
 ```{r}
@@ -497,6 +471,7 @@ Based on the relationship between some of these variables and two-year recidivis
 For instance, a logarithmic scale better captures the relationship between `priors_count` and recidivism than a linear scale:  
   
 ```{r}
+#FOR DISCUSSION: I think everything below needs to use train.dat. Agree?
 ggplot(data = recid.all,
        aes(x = priors_count,
            y = two_year_recid)) +
@@ -526,9 +501,11 @@ ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
 ```
   
   
-  Based on this finding, we chose to add `log2(priors_count + 1)` as a variable. We also added variables indicating whether the defendant had any cases on their juvenile record. We then performed an exhaustive search to select variables to keep for our model.
+  Based on this finding, we chose to add `log2(priors_count + 1)` as a variable. We also added variables indicating whether the defendant had any cases on their juvenile record. We then performed an exhaustive search to select variables to keep for our general linear model. In this case, since our outcome variable `two_year_recid` is binary, we will be aplying a logistic regression to classify participants.
 ```{r}
+#FOR DISCUSSION: This is for a linear regression, right? I think we have to choose variables separately for each model, rather than just choosing them once. 
 #Choosing variables
+#FOR DISCUSSION: I think we're not SUPPOSED to use both age and age_factor b/c the whole thing we learned in HW 1 about collinearity. 
 recid.subsets <- regsubsets(as.factor(two_year_recid) ~
                               crime_factor +
                               age +
@@ -558,7 +535,6 @@ plot(x = summary(recid.subsets)$bic, xlab = "Number of Variables", ylab = "BIC")
 minbic <- which.min(summary(recid.subsets)$bic)
 points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
 ```
-  
   
 Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r maxr2`` (according to adjusted r-squared) variables. As the increase in adjusted r-squared is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
 ```{r}
@@ -617,6 +593,7 @@ Create a logistic regression model:
 glm.logit <- glm(two_year_recid ~ crime_factor + age + age_factor + race_factor + gender_factor + log2(priors_count + 1) + priors_count + juv_fel_count + juv_misd_count + juv_other_count + length_of_stay, data=train.dat, family = binomial)
 summary(glm.logit)
 kable(coef(summary(glm.logit)), digits= 3)
+#FOR DISCUSSION: Per fomments above, could this be where we choose variables?
 
 ```
 
@@ -764,12 +741,26 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Specificity = scales::percent(lda.spec, accuracy = 0.1)),
       format = "markdown")
 
+library(klaR)
+
+#FOR DISCUSSION: Can we do the partimat thing here? It doesn't seem to work, but this may be an error in my code. It was so pretty on the hw!
+#example
+#partimat(Species ~ ., data = iris, method = "lda")
+# partimat(two_year_recid ~
+#                    crime_factor +
+#                    age +
+#                    (age_factor == "Less than 25") +
+#                    gender_factor +
+#                    length_of_stay +
+#                    (juv_other_count > 0) +
+#                    log2(priors_count + 1), data = recid.all, method = "lda")
+
 #It would be great to have an ROC curve here, but for now I'm going to bed :)
 ```
   
   
-***Quinear Discriminant Analysis (QDA)***  
-When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA:
+***Quadratic Discriminant Analysis (QDA)***  
+When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA.
 ```{r}
 
 recid.qda <- qda(two_year_recid ~
@@ -866,20 +857,21 @@ To decide between models, we looked at three measures of error:
   
 **Statistics for the best version of each data mining method**    
 [fill this in once we've run the models -- this is just a template]  
-| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |
-|--------------------------------------------|----------------|------------------|-------------|
-| Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
-| Naive Bayes (NB)                           |                |                  |             |
-| Random Forrest (RF)                        |                |                  |             |
-| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |
-|--------------------------------------------|----------------|------------------|-------------|
-| Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
-| Naive Bayes (NB)                           |                |                  |             |
-| Random Forrest (RF)                        |                |                  |             |
+| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
+|--------------------------------------------|----------------|------------------|-------------|  
+| Logistic regression                        |                |                  |             |    
+| Linear Discriminant Analysis (LDA)         |                |                  |             |  
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             |   
+| Naive Bayes (NB)                           |                |                  |             |  
+| Random Forrest (RF)                        |                |                  |             |  
+| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
+|--------------------------------------------|----------------|------------------|-------------|  
+| Logistic regression                        |                |                  |             |   
+| Linear Discriminant Analysis (LDA)         |                |                  |             |  
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             |   
+| Naive Bayes (NB)                           |                |                  |             |  
+| Random Forrest (RF)                        |                |                  |             |  
+
 [Let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
 **2c: Demographic analysis of the best version of each model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
