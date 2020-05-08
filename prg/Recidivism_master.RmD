@@ -603,7 +603,24 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
       format = "markdown")
 #It would be great to have an ROC curve here, but for now I'm going to bed :)
 ```
-  
+
+****Cross-Validation of LDA****
+```{r}
+#Cross-Validation Time!!
+lda.cv.pred <- predict(object = recid.lda,
+                       newdata = cv.dat,
+                       type = "response")
+lda.cv.tab = table(predicted = lda.cv.pred$class,
+                actual = cv.dat$two_year_recid)
+lda.cv.tab
+
+lda.cv.acc <- (lda.cv.tab[1,1] + lda.cv.tab[2,2]) / sum(lda.cv.tab)
+lda.cv.sens <- lda.cv.tab[2,2] / sum(lda.cv.tab[,2])
+lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
+tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
+             Specificity = scales::percent(lda.cv.spec, accuracy = 0.1))
+```
   
 ***Quinear Discriminant Analysis (QDA)***  
 When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA:
@@ -628,16 +645,38 @@ kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
              Specificity = scales::percent(qda.spec, accuracy = 0.1)),
       format = "markdown")
 ```
+
+****Cross-Validation of QDA****
+```{r}
+qda.cv.pred <- predict(object = recid.qda,
+                       newdata = cv.dat,
+                       type = "response")
+qda.cv.tab = table(predicted = qda.cv.pred$class,
+                actual = cv.dat$two_year_recid)
+qda.cv.tab
+
+qda.cv.acc <- (qda.cv.tab[1,1] + qda.cv.tab[2,2]) / sum(qda.cv.tab)
+qda.cv.sens <- qda.cv.tab[2,2] / sum(qda.cv.tab[,2])
+qda.cv.spec <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
+tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
+             Specificity = scales::percent(qda.cv.spec, accuracy = 0.1))
+```
+  
+
 ***Sormeh Attempts Random Forest because she's interested in varImpPlot()***
 These "Partial Dependence" plots seem to be showing us that if we were to look at how our prediction changes, on average, as we vary a single variable, holding all other factors fixed, the likelihood estimated that someone recidivates after two years of comitting a crime are as follows: **THERE IS SOMETHING WRONG WITH THESE PLOTS. THEY SEEM TO BE SHOWING THE EXACT OPPOSITE OF WHAT WE WOULD INTUITIVELY HAVE EXPECTED**
 These are approximate plots, they are not capturing any faithful interaction or capturing anything the model is actually doing. They do provide some intuition to what is going on. **OR AT LEAST THEY SHOULD BE**
 - If anyone is able to interpret these plots in the way they should be interpreted, or if anyone knows how to fix what I have done, PLEASE GO RIGHT AHEAD!
 ```{r, message = FALSE}
-#set.seed(123)
+#set.seed(12)
 #recid.rf <- randomForest(two_year_recid ~ race + age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count + is_recid +
 #                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all, importance = TRUE, ntree = 250)
 ## is_recid got wildl importance (~400 and then IncNodePUrity was at 1200, not sure what that means)
 #recid.all.train$two_year_recid <- as.character(recid.all.train$two_year_recid)
+
+#I think the code for recid.all.train got deleted at some point and it's causing errors - I put a little band-aid here
+recid.all.train <- train.dat
 recid.all.train$two_year_recid <- as.factor(recid.all.train$two_year_recid)
 #recid.rf <- randomForest(two_year_recid ~ race + age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
 #                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all.train, importance = TRUE)
@@ -695,8 +734,8 @@ To decide between models, we looked at three measures of error:
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
 | Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |  
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         |``r lda.cv.acc``|``r lda.cv.sens`` |``r lda.cv.spec``|  
+| Quadratic Discriminant Analysis (QDA)      |``r qda.cv.acc``|``r qda.cv.sens`` |``r qda.cv.spec``|  
 | Random Forest (RF)                         |                |                  |             |  
 |--------------------------------------------|----------------|------------------|-------------|  
 | Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
