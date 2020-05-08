@@ -415,7 +415,7 @@ Prior to starting the data mining process, we randomly split the data into train
 
 Here we create a column `is.cv` where `train.dat` is a subset of the data whose is.cv value is 0 (70% of the recid.all dataset); `cv.dat` is a subset of the data whose is.cv value is 2 (20% of the recid.all dataset); and `test.dat` is a subset of the data whose is.cv value is 1 (10% of the recid.all dataset). Using the `sample` function in r ensures this division is random, and we have set a seed at 1 so that the random division will give the same results when the code is re-run. 
 ```{r, message = FALSE}
-set.seed(1)
+set.seed(12)
 recid.all$is.cv <- sample(c(0,1,2), size = nrow(recid.all), replace=TRUE, prob = c(0.7, 0.1, 0.2))
 prop.table(table(recid.all$is.cv))
 
@@ -501,11 +501,9 @@ ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
 ```
   
   
-  Based on this finding, we chose to add `log2(priors_count + 1)` as a variable. We also added variables indicating whether the defendant had any cases on their juvenile record. We then performed an exhaustive search to select variables to keep for our general linear model. In this case, since our outcome variable `two_year_recid` is binary, we will be aplying a logistic regression to classify participants.
+  Based on this finding, we chose to add `log2(priors_count + 1)` as a variable. We also added variables indicating whether the defendant had any cases on their juvenile record. We then performed an exhaustive search to select variables to keep for our general linear model. In this case, since our outcome variable `two_year_recid` is binary, we will be applying a logistic regression to classify participants.
 ```{r}
-#FOR DISCUSSION: This is for a linear regression, right? I think we have to choose variables separately for each model, rather than just choosing them once. 
 #Choosing variables
-#FOR DISCUSSION: I think we're not SUPPOSED to use both age and age_factor b/c the whole thing we learned in HW 1 about collinearity. 
 recid.subsets <- regsubsets(as.factor(two_year_recid) ~
                               crime_factor +
                               age +
@@ -526,62 +524,21 @@ recid.subsets <- regsubsets(as.factor(two_year_recid) ~
                             nvmax = 15,
                             method = "exhaustive")
 par(mfrow = c(1, 2))
-#Adjusted R-Squared Chart
-plot(x = summary(recid.subsets)$adjr2, xlab = "Number of Variables", ylab = "Adj. R-Squared")
-maxr2 <- which.max(summary(recid.subsets)$adjr2)
-points(maxr2, summary(recid.subsets)$adjr2[maxr2], col = "green3", cex = 1, pch = 20)
+#AIC Chart
+plot(x = summary(recid.subsets)$cp, xlab = "Number of Variables", ylab = "Mallow's CP")
+mincp <- which.min(summary(recid.subsets)$cp)
+points(mincp, summary(recid.subsets)$cp[mincp], col = "green3", cex = 1, pch = 20)
 #BIC Chart
 plot(x = summary(recid.subsets)$bic, xlab = "Number of Variables", ylab = "BIC")
 minbic <- which.min(summary(recid.subsets)$bic)
 points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
 ```
   
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r maxr2`` (according to adjusted r-squared) variables. As the increase in adjusted r-squared is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
+  
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to adjusted r-squared) variables. As the increase in adjusted r-squared is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
 ```{r}
 kable(coef(recid.subsets, 7), format = "markdown")
 ```
-
-**Sormeh attempts Forward Stepwise, instead of exhaustive search**
-
-- **For the forward stepwise selection model, we see that the best one-variable model contains:** `log2(priors_count + 1`.
-- **We see that the best two-variable model contains:** `log2(priors_count + 1`, `age`.
-- **The best three-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`.
-- **The best four-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`.
-- **The best five-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`.
-- **The best six-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`.
-- **The best seven-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`.
-- **The best eight-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`, `age_factorGreater than 45`.
-- **The best nine-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`, `age_factorGreater than 45`, `race_factorAfrican-American`.
-- **The best ten-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`, `age_factorGreater than 45`, `race_factorAfrican-American`, `priors_count`.
-- **The best eleven-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`, `age_factorGreater than 45`, `race_factorAfrican-American`, `priors_count`, `race_factorAsian`.
-- **The best twelve-variable model contains:** `log2(priors_count + 1`, `age`, `age_factorLess than 25`, `gender_factorFemale`, `length_of_stay`, `juv_other_count`, `crime_factorM`, `age_factorGreater than 45`, `race_factorAfrican-American`, `priors_count`, `race_factorAsian`, `race_factorHispanic`.
-- There are differences between the forward stepwise selection model and the exhaustive model. (IDK IF THIS IS TRUE)
-
-```{r, message=FALSE}
-recid.forward <- regsubsets(two_year_recid ~ crime_factor + age + age_factor + race_factor + gender_factor + log2(priors_count + 1) + priors_count + juv_fel_count + juv_misd_count + juv_other_count + length_of_stay, data = recid.all, nbest = 1, nvmax = 15, method = "forward")
-
-coef(recid.forward, 5)
-summary(recid.forward)
-
-```
-
-```{r, message=FALSE}
-rec.fwd.summary <- summary(recid.forward)
-
-plot(rec.fwd.summary$adjr2, xlab = "Number of variables/ Model size", ylab = "Adjusted R^2", type = "l")
-points(which.max(rec.fwd.summary$adjr2), rec.fwd.summary$adjr2[which.max(rec.fwd.summary$adjr2)], col = "blue", cex = 2, pch = 20)
-```
-
-```{r}
-plot(rec.fwd.summary$cp, xlab = "Model Size", ylab = "AIC (or C_p)", type = "l")
-points(which.min(rec.fwd.summary$cp), rec.fwd.summary$adjr2[which.min(rec.fwd.summary$cp)], col = "green", cex = 2, pch = 20)
-coef(recid.forward, 10)
-```
-- **Model size** `r which.min(rec.fwd.summary$cp)` **minimizes AIC**
-- **The curve is not monotonic. It decreases until model 10, and then starts to increase again after model 10.**
-- **There are X noise predictors in this model.** HOW MANY NOISE PREDICTORS??
-- **AIC is said to be an unbiased estimate of test MSE, so it generally chooses the smaller number of variables for models with low test error.**
-- SHOULD WE ALSO DO BIC???
 
 
 **Sormeh Attempts Logistic Regression**
@@ -590,11 +547,19 @@ First we run a logistic regression using recid.all on `two_year_recid`:
 ATTEMPT 2: Logistic Regression and Prediction: 
 Create a logistic regression model: 
 ```{r, message = FALSE}
-glm.logit <- glm(two_year_recid ~ crime_factor + age + age_factor + race_factor + gender_factor + log2(priors_count + 1) + priors_count + juv_fel_count + juv_misd_count + juv_other_count + length_of_stay, data=train.dat, family = binomial)
+# 5189.5
+glm.logit <- glm(two_year_recid ~
+                   crime_factor +
+                   age +
+                   age_factor +
+                   gender_factor +
+                   log2(priors_count + 1) +
+                   (juv_other_count > 0) +
+                   length_of_stay,
+                 data=train.dat,
+                 family = binomial)
 summary(glm.logit)
 kable(coef(summary(glm.logit)), digits= 3)
-#FOR DISCUSSION: Per fomments above, could this be where we choose variables?
-
 ```
 
 Use the model above to make a prediction for two_year_recid (using the cross-validation data)
@@ -741,26 +706,12 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Specificity = scales::percent(lda.spec, accuracy = 0.1)),
       format = "markdown")
 
-library(klaR)
-
-#FOR DISCUSSION: Can we do the partimat thing here? It doesn't seem to work, but this may be an error in my code. It was so pretty on the hw!
-#example
-#partimat(Species ~ ., data = iris, method = "lda")
-# partimat(two_year_recid ~
-#                    crime_factor +
-#                    age +
-#                    (age_factor == "Less than 25") +
-#                    gender_factor +
-#                    length_of_stay +
-#                    (juv_other_count > 0) +
-#                    log2(priors_count + 1), data = recid.all, method = "lda")
-
 #It would be great to have an ROC curve here, but for now I'm going to bed :)
 ```
   
   
-***Quadratic Discriminant Analysis (QDA)***  
-When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA.
+***Quinear Discriminant Analysis (QDA)***  
+When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA:
 ```{r}
 
 recid.qda <- qda(two_year_recid ~
@@ -857,21 +808,19 @@ To decide between models, we looked at three measures of error:
   
 **Statistics for the best version of each data mining method**    
 [fill this in once we've run the models -- this is just a template]  
-| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
-|--------------------------------------------|----------------|------------------|-------------|  
-| Logistic regression                        |                |                  |             |    
-| Linear Discriminant Analysis (LDA)         |                |                  |             |  
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             |   
-| Naive Bayes (NB)                           |                |                  |             |  
-| Random Forrest (RF)                        |                |                  |             |  
-| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
-|--------------------------------------------|----------------|------------------|-------------|  
-| Logistic regression                        |                |                  |             |   
-| Linear Discriminant Analysis (LDA)         |                |                  |             |  
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             |   
-| Naive Bayes (NB)                           |                |                  |             |  
-| Random Forrest (RF)                        |                |                  |             |  
-
+| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |
+|--------------------------------------------|----------------|------------------|-------------|
+| Logistic regression                        |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         |                |                  |             |
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
+| Random Forest (RF)                         |                |                  |             |
+|--------------------------------------------|----------------|------------------|-------------|
+| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |
+|--------------------------------------------|----------------|------------------|-------------|
+| Logistic regression                        |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         |                |                  |             |
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
+| Random Forest (RF)                         |                |                  |             |
 [Let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
 **2c: Demographic analysis of the best version of each model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
