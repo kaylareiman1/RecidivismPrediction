@@ -122,12 +122,6 @@ This analysis is run using ProPublica's data. In order to have clean data, it is
 ###################################
 # Read in all ProPublica datasets #
 ###################################
-#compas.scores.raw <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-raw.csv")
-#compas.scores <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores.csv")
-#compas.scores.two.years <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years.csv")
-#compas.scores.two.years.violent <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years-violent.csv")
-#cox.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-parsed.csv")
-#cox.violent.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-violent-parsed.csv")
 compas.scores.raw <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-raw.csv", header=T)
 compas.scores <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores.csv", header=T)
 compas.scores.two.years <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-two-years.csv", header=T)
@@ -135,10 +129,6 @@ compas.scores.two.years.violent <- read.csv("https://raw.githubusercontent.com/p
 cox.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-parsed.csv", header=T)
 cox.violent.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-violent-parsed.csv", header=T)
 
-#Next step 1 (low LOE): Somebody fix so the file paths aren't just for my local directories. Here are three options in order of how ideal they would be:
-#   The propublica github files
-#   My forked version of the propublica github files:  https://github.com/kaylareiman1/compas-analysis
-#   Our copied and pasted version of the propublica github files: https://github.com/kaylareiman1/RecidivismPrediction/tree/master/datasets
 ####################################
 # Adapt ProPublica's Data Cleaning #
 ####################################
@@ -236,7 +226,6 @@ colnames.all[(colnames.vio != colnames.all)]
 Given the multiple posibilities for recidivism outcome variables, the tables below show the checks that were run to determine that two_year_recid is the correct outcome variable to use in both datasets. These checks also helped us determine that the ProPublica's "violent recidivsm" dataset was a subset of the "all recidivism" dataset. Therefore, the rest of our project uses dataset for all recidivism - nicknamed recid.all.  
 
 ```{r, message = FALSE}
-
 #Check how the recidivism variables relate
 kable(recid.all %>%
   group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
@@ -418,7 +407,6 @@ Here we create a column `is.cv` where `train.dat` is a subset of the data whose 
 set.seed(12)
 recid.all$is.cv <- sample(c(0,1,2), size = nrow(recid.all), replace=TRUE, prob = c(0.7, 0.1, 0.2))
 prop.table(table(recid.all$is.cv))
-
 train.dat <- subset(recid.all, subset = is.cv == 0)
 cv.dat <- subset(recid.all, subset = is.cv == 2)
 test.dat <- subset(recid.all, subset = is.cv == 1)
@@ -472,7 +460,7 @@ For instance, a logarithmic scale better captures the relationship between `prio
   
 ```{r}
 #FOR DISCUSSION: I think everything below needs to use train.dat. Agree?
-ggplot(data = recid.all,
+ggplot(data = train.dat,
        aes(x = priors_count,
            y = two_year_recid)) +
   stat_summary_bin(geom = "line",
@@ -486,7 +474,7 @@ ggplot(data = recid.all,
   
   
 ```{r}  
-ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
+ggplot(data = mutate(train.dat, priors_count = log2(priors_count + 1)),
        aes(x = priors_count,
            y = two_year_recid)) +
   stat_summary_bin(geom = "line",
@@ -519,7 +507,7 @@ recid.subsets <- regsubsets(as.factor(two_year_recid) ~
                               juv_other_count +
                               (juv_other_count > 0) +
                               length_of_stay,
-                            data = recid.all,
+                            data = train.dat,
                             nbest = 1,
                             nvmax = 15,
                             method = "exhaustive")
@@ -535,7 +523,7 @@ points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch 
 ```
   
   
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to adjusted r-squared) variables. As the increase in adjusted r-squared is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to AIC) variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
 ```{r}
 kable(coef(recid.subsets, 7), format = "markdown")
 ```
@@ -567,137 +555,45 @@ I tried this two different ways, but I'm not certain which one is the right way.
 I think eventually we would compare the misclassification rate here with the test data if this is the one we decide on. Otherwise we compare it to the misclassification rate of the other models to pick the best model.
 ```{r, message = FALSE}
 glm.logit.predict = predict(glm.logit, cv.dat, type="response")
-
 ##what is the actual difference here????
 p2 <- predict(glm.logit, cv.dat, interval="prediction")
 paste("glm prediction with type response:")
 glm.logit.predict[1:10]
 paste("glm prediction with type prediction:")
 p2[1:10]
-
-
 confusion.glm = ifelse(glm.logit.predict > 0.5, "1", "0")
 confusions.pred = table(confusion.glm, cv.dat$two_year_recid)
 confusions.pred
-
-
 # Misclassification
 paste("Misclassification Rate (with cv.dat):")
 1- sum(diag(confusions.pred)) / sum(confusions.pred)
 qplot(glm.logit.predict, geom="histogram")
-
 ## This does not work, sigh:
 #p <- ggplot(data = recid.all, aes(two_year_recid, fill = as.factor(glm.logit.predict$y))) +
 #  geom_histogram(binwidth = 1)
-
 #ggplotly(p)
-
 ```
 
 The histogram shows us estimated probabilities from our logistic regression.
 
-**scratch this part??**
-```{r, message=FALSE}
-## Going to try with all of the factors for now, and then I will be more selective
-## working with dataset = recid.all
-#glm.fits = glm(two_year_recid ~age_factor+race_factor+gender_factor+crime_factor+age, data=recid.all, family=binomial)
-glm.fits = glm(two_year_recid ~age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all, family=binomial)
-#glm.fits = glm(two_year_recid ~ race_factor+gender_factor+crime_factor+age, data=recid.all, family=binomial)
-summary(glm.fits)
-## To just see the coefficients
-summary(glm.fits)$coef[,4]
-```
-
-```{r, message=FALSE}
-## Create random training set and testing set
-## adding a column of random 0 and 1s 
-recid.all$is.test <- sample(c(0,1), size = nrow(recid.all), replace=TRUE)
-## Partition recid.all data
-recid.all.train <- subset(recid.all, subset = is.test == 0)
-recid.all.test <- subset(recid.all, subset = is.test == 1)
-```
-
-
-``````{r, message=FALSE}
-## Predict function to predict the probability that someone will have recidivated in 2 years
-## type="response" tells R to output probabilities of the form P(Y=1|X)
-print("Predicing two_year_recid:")
-glm.probs = predict(glm.fits, type="response")
-glm.probs[1:10]
-#contrasts(two_year_recid) ## this does not work for some reason...
-p <- ggplot(data = recid.all, aes(two_year_recid, fill = as.factor(glm.fits$y))) +
-  geom_histogram(binwidth = 1)
-ggplotly(p)
-```
-
-```{r, message=FALSE}
-## Trying again but just with training data
-## Predict function to predict the probability that someone will have recidivated in 2 years
-## type="response" tells R to output probabilities of the form P(Y=1|X)
-print("Predicing two_year_recid **Training Data**:")
-glm.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all.train, family = binomial)
-summary(glm.logit)
-kable(coef(summary(glm.logit)), digits= 3)
-glm.probs = predict(glm.logit, type="response")
-glm.probs[1:10]
-#contrasts(two_year_recid) ## this does not work for some reason...
-p <- ggplot(data = recid.all.train, aes(two_year_recid, fill = as.factor(glm.logit$y))) +
-  geom_histogram(binwidth = 1)
-ggplotly(p)
-```
-```{r,message=FALSE}
-#spam.logit
-glm.probs = predict.glm(glm.logit, type="response")
-confusion.glm = ifelse(glm.probs > 0.5, "1", "0")
-conf.train.pred = table(confusion.glm, recid.all.train$two_year_recid)
-conf.train.pred
-#recid.test.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+age, data=recid.all.test, family=binomial)
-recid.test.logit <- glm(two_year_recid ~ age_factor+race_factor+gender_factor+crime_factor+priors_count, data=recid.all.test, family=binomial)
-glm.probs = predict.glm(recid.test.logit, type="response")
-conf.test.glm = ifelse(glm.probs > 0.5, "1", "0")
-conf.test.pred = table(conf.test.glm, recid.all.test$two_year_recid)
-conf.test.pred
-# Misclassification
-print("Train Misclassification:")
-1- sum(diag(conf.train.pred)) / sum(conf.train.pred)
-print("Test Misclassification:")
-1-sum(diag(conf.test.pred)) / sum(conf.test.pred)
-```
-```{r, message = FALSE}
-### COME BACK TO ME!!!
-print("Come back here for editing...trying to plot the additive logistic models from homework 4 problem 3")
-#recid.formula <- formula(paste("two_year_recid ~ ", paste("s(", varinfo[,1], ", 4)", sep = "", collapse= " + ")))
-# Edit me
-#recid.gam <- gam(recid.formula, data=recid.all.train, family = binomial)
-#summary(recid.gam)
-#par(mfrow=c(15,4))
-#plot(recid.gam, se=T, col="ForestGreen")
-```
-**end of scratching part??**
-
-
 ***Linear Discriminant Analysis (LDA)***
-
 Running an LDA using the above variables, we achieve the following results:
   
 ```{r}
 recid.lda <- lda(two_year_recid ~
-                   crime_factor +
                    age +
-                   (age_factor == "Less than 25") +
+                   age_factor +
                    gender_factor +
                    length_of_stay +
                    (juv_other_count > 0) +
                    log2(priors_count + 1),
-                 data = recid.all)
-                 #subset = train.all)
-#How do I get it to predict the test set?
+                 data = train.dat)
+#Results are currently for the training data
 recid.lda.pred <- predict(recid.lda,
                           type = "response")
 lda.tab = table(predicted = recid.lda.pred$class,
-                actual = recid.all$two_year_recid)
+                actual = train.dat$two_year_recid)
 lda.tab
-
 lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
 lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
 lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
@@ -705,7 +601,6 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.spec, accuracy = 0.1)),
       format = "markdown")
-
 #It would be great to have an ROC curve here, but for now I'm going to bed :)
 ```
   
@@ -713,18 +608,17 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
 ***Quinear Discriminant Analysis (QDA)***  
 When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA:
 ```{r}
-
 recid.qda <- qda(two_year_recid ~
                    crime_factor +
                    age +
                    (age_factor == "Less than 25") +
                    gender_factor +
                    log2(priors_count + 1),
-                 data = recid.all)
+                 data = train.dat)
 recid.qda.pred <- predict(recid.qda,
                           type = "response")
 qda.tab = table(predicted = recid.qda.pred$class,
-                actual = recid.all$two_year_recid)
+                actual = train.dat$two_year_recid)
 qda.tab
 qda.acc <- (qda.tab[1,1] + qda.tab[2,2]) / sum(qda.tab)
 qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
@@ -734,9 +628,7 @@ kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
              Specificity = scales::percent(qda.spec, accuracy = 0.1)),
       format = "markdown")
 ```
-
 ***Sormeh Attempts Random Forest because she's interested in varImpPlot()***
-
 These "Partial Dependence" plots seem to be showing us that if we were to look at how our prediction changes, on average, as we vary a single variable, holding all other factors fixed, the likelihood estimated that someone recidivates after two years of comitting a crime are as follows: **THERE IS SOMETHING WRONG WITH THESE PLOTS. THEY SEEM TO BE SHOWING THE EXACT OPPOSITE OF WHAT WE WOULD INTUITIVELY HAVE EXPECTED**
 These are approximate plots, they are not capturing any faithful interaction or capturing anything the model is actually doing. They do provide some intuition to what is going on. **OR AT LEAST THEY SHOULD BE**
 - If anyone is able to interpret these plots in the way they should be interpreted, or if anyone knows how to fix what I have done, PLEASE GO RIGHT AHEAD!
@@ -747,16 +639,12 @@ These are approximate plots, they are not capturing any faithful interaction or 
 ## is_recid got wildl importance (~400 and then IncNodePUrity was at 1200, not sure what that means)
 #recid.all.train$two_year_recid <- as.character(recid.all.train$two_year_recid)
 recid.all.train$two_year_recid <- as.factor(recid.all.train$two_year_recid)
-
 #recid.rf <- randomForest(two_year_recid ~ race + age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
 #                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all.train, importance = TRUE)
 recid.rf <- randomForest(two_year_recid ~ race + age + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
                            crime_factor + age_factor + race_factor + gender_factor, data=recid.all.train, importance = TRUE)
-
 plot(recid.rf)
-
 varImpPlot(recid.rf)
-
 partialPlot(recid.rf, recid.all.train, priors_count)
 partialPlot(recid.rf, recid.all.train, age)
 partialPlot(recid.rf, recid.all.train, age_factor)
@@ -767,11 +655,9 @@ partialPlot(recid.rf, recid.all.train, crime_factor)
 partialPlot(recid.rf, recid.all.train, juv_other_count)
 partialPlot(recid.rf, recid.all.train, juv_misd_count)
 partialPlot(recid.rf, recid.all.train, juv_fel_count)
-
 #partialPlot()
 imp.recid <- importance(recid.rf)
 imp.recid
-
 ## For some reason this is not plotting everything out...
 #imp.recid <- importance(recid.rf)
 #impvar <- rownames(imp.recid)[order(imp.recid[, 1], decreasing=TRUE)]
@@ -789,9 +675,7 @@ imp.recid
 #    partialPlot(ozone.rf, airquality, impvar[i], xlab=impvar[i],
 #                main=paste("Partial Dependence on", impvar[i]),
 #                ylim=c(30, 70))
-
 ```
-
 We then decided to pursue [which models should we use?]
 ```{r, message = FALSE}
 #Run these models on training data
@@ -808,19 +692,19 @@ To decide between models, we looked at three measures of error:
   
 **Statistics for the best version of each data mining method**    
 [fill this in once we've run the models -- this is just a template]  
-| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |
-|--------------------------------------------|----------------|------------------|-------------|
+| Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
+|--------------------------------------------|----------------|------------------|-------------|  
 | Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
-| Random Forest (RF)                         |                |                  |             |
-|--------------------------------------------|----------------|------------------|-------------|
-| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |
-|--------------------------------------------|----------------|------------------|-------------|
+| Linear Discriminant Analysis (LDA)         |                |                  |             |  
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             |  
+| Random Forest (RF)                         |                |                  |             |  
+|--------------------------------------------|----------------|------------------|-------------|  
+| Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
+|--------------------------------------------|----------------|------------------|-------------|  
 | Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             | 
-| Random Forest (RF)                         |                |                  |             |
+| Linear Discriminant Analysis (LDA)         |                |                  |             |  
+| Quadratic Discriminant Analysis (QDA)      |                |                  |             |  
+| Random Forest (RF)                         |                |                  |             |  
 [Let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
 **2c: Demographic analysis of the best version of each model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
