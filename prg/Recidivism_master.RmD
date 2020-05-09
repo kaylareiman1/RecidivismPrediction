@@ -31,6 +31,7 @@ library(dplyr)        # data transformation, just trying to see if works (naive 
 library(caret)        # naive bayes package
 library(h2o)          # naive bayes package
 library(MASS)         # For LDA
+library(pROC)
 #Format numbers so that they are not in scientific notation.
 options(scipen = 4)
 ```
@@ -86,7 +87,6 @@ compas.scores.two.years <- read.csv("https://raw.githubusercontent.com/propublic
 compas.scores.two.years.violent <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-two-years-violent.csv", header=T)
 cox.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-parsed.csv", header=T)
 cox.violent.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-violent-parsed.csv", header=T)
-
 ####################################
 # Adapt ProPublica's Data Cleaning #
 ####################################
@@ -98,11 +98,9 @@ cox.violent.parsed <- read.csv("https://raw.githubusercontent.com/propublica/com
       #   + people who had either recidivated in two years  
       #   + had at least two years outside of a correctional facility.  
 #Unlike ProPublica, we won't be dropping any attributes because that may bias our model.
-
 ######################
 ### All recidivism ###
 ######################
-
 #Dropping bad data
 recid.all <-compas.scores.two.years %>% 
         filter(days_b_screening_arrest <= 30) %>%
@@ -110,7 +108,6 @@ recid.all <-compas.scores.two.years %>%
         filter(is_recid != -1) %>%
         filter(c_charge_degree != "O") %>%
         filter(score_text != 'N/A')
-
 #Recoding variables
 recid.all$length_of_stay <- as.numeric(as.Date(recid.all$c_jail_out) - as.Date(recid.all$c_jail_in))
 recid.all <- mutate(recid.all, crime_factor = factor(c_charge_degree)) %>%
@@ -121,11 +118,9 @@ recid.all <- mutate(recid.all, crime_factor = factor(c_charge_degree)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
       mutate(score_factor = factor(score_text != "Low", labels = c("LowScore","HighScore")))
-
 ##########################
 ### Violent recidivism ###
 ##########################
-
 #Dropping bad data
 recid.vio <- compas.scores.two.years.violent %>% 
         filter(days_b_screening_arrest <= 30) %>%
@@ -133,7 +128,6 @@ recid.vio <- compas.scores.two.years.violent %>%
         filter(is_recid != -1) %>%
         filter(c_charge_degree != "O") %>%
         filter(v_score_text != 'N/A')
-
 #Recoding variables
 recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
       mutate(age_factor = as.factor(age_cat)) %>%
@@ -211,9 +205,7 @@ ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
 Based on this finding, we chose to add `log2(priors_count + 1)` as a variable called `priors_log`. We also added variables indicating whether the defendant had any cases on their juvenile record.
 
 ```{r, message = FALSE}
-
 #Create new vars following Moses's work looking at what should go into the model
-
 recid.new <- mutate(recid.all, 
              any_recid_2yr        = recode_factor(two_year_recid, 
                                                   `0` = "No",                             
@@ -229,8 +221,6 @@ recid.new <- mutate(recid.all,
                                                       juv_other_count  >  0 ~ "Yes"))
                     
                     )
-
-
 #Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic varibles are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
 recid.new <- dplyr::select(recid.new, #dataset 
                           id, #Personal ID
@@ -256,7 +246,6 @@ kable(colnames(recid.new))
 The univariate graphs below show that the most categories in the dataset were men, black people, and those between the age of of 20 and 45.
 ```{r, message = FALSE}
 #These three graphs are identical, except with different input variables.
-
 ##########
 # GENDER #
 ##########
@@ -267,12 +256,9 @@ gender_factor.uni.all +
   guides(fill = FALSE) + 
   xlab("Gender") + 
   ylab("Number of People")
-
-
 ##########
 #  RACE  #
 ##########
-
 race_factor.uni.all <- ggplot(recid.new, aes(x=race_factor, fill = I("darkblue")))
 race_factor.uni.all + 
   geom_bar(stat = "count", na.rm = F) + 
@@ -280,8 +266,6 @@ race_factor.uni.all +
   guides(fill = FALSE) + 
   xlab("Race") + 
   ylab("Number of People")
-
-
 ##########
 #  AGE   #
 ##########
@@ -326,7 +310,6 @@ ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
   xlab("Prediction")+ 
   ylab(NULL)
 grid.arrange(ranking.all, ranking.vio, ncol = 2)
-
 ```
 
 #### **1e: Accuracy of Predictions by Demographic Group**  
@@ -341,7 +324,6 @@ Additionally, we already know from the univariate race graphs that the recidivis
 
 ```{r, warning = FALSE, message = FALSE}
 #Note -- just copying and pasting same charts for different characteristics. Could create a function instead. Also, note that I only ran this for as.numeric(any_recid_2yr) because 2) running it for violent seemed like too many charts.
-
 ##########
 # GENDER #
 ##########
@@ -358,14 +340,12 @@ gender_factor.bi.all.dec <- ggplot(data = gender_factor.bi.conf.all, aes(x = gen
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
   theme(text = element_text(size=12))
-
 # Bivariate w/ recid 
 gender_factor.bi.conf.all <- recid.new %>%
   group_by(gender_factor) %>%
   summarize(Avgtwo_year_recid = mean(two_year_recid),
             upper = t.test(two_year_recid)$conf.int[1],
             lower = t.test(two_year_recid)$conf.int[2])
-
 gender_factor.bi.all.recid <- ggplot(data = gender_factor.bi.conf.all, aes(x = gender_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
   geom_bar(stat = "identity") +
   xlab("gender_factor") + 
@@ -374,19 +354,15 @@ gender_factor.bi.all.recid <- ggplot(data = gender_factor.bi.conf.all, aes(x = g
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
   theme(text = element_text(size=12))
-
-
 ##########
 # RACE #
 ##########
-
 # Bivariate w/ decile score 
 race_factor.bi.conf.all <- recid.new %>%
   group_by(race_factor) %>%
   summarize(Avgdecile_score = mean(decile_score),
             upper = t.test(decile_score)$conf.int[1],
             lower = t.test(decile_score)$conf.int[2])
-
 race_factor.bi.all.dec <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgdecile_score, fill = I("darkblue"))) +  
   geom_bar(stat = "identity") +
   xlab("Race") + 
@@ -395,14 +371,12 @@ race_factor.bi.all.dec <- ggplot(data = race_factor.bi.conf.all, aes(x = race_fa
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
   theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
-
 # Bivariate w/ recid 
 race_factor.bi.conf.all <- recid.new %>%
   group_by(race_factor) %>%
   summarize(Avgtwo_year_recid = mean(two_year_recid),
             upper = t.test(two_year_recid)$conf.int[1],
             lower = t.test(two_year_recid)$conf.int[2])
-
 race_factor.bi.all.recid <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
   geom_bar(stat = "identity") +
   xlab("Race") + 
@@ -411,12 +385,9 @@ race_factor.bi.all.recid <- ggplot(data = race_factor.bi.conf.all, aes(x = race_
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
   theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
-
-
 ##########
 # age  #
 ##########
-
 # Bivariate w/ decile score 
 age_factor.bi.conf.all <- recid.new %>%
   group_by(age_factor) %>%
@@ -430,14 +401,12 @@ age_factor.bi.all.dec <- ggplot(data = age_factor.bi.conf.all, aes(x = age_facto
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
   theme(text = element_text(size=12))
-
 # Bivariate w/ recid 
 age_factor.bi.conf.all <- recid.new %>%
   group_by(age_factor) %>%
   summarize(Avgtwo_year_recid = mean(two_year_recid),
             upper = t.test(two_year_recid)$conf.int[1],
             lower = t.test(two_year_recid)$conf.int[2])
-
 age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
   geom_bar(stat = "identity") +
   xlab("age") + 
@@ -446,7 +415,6 @@ age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_fac
   guides(fill = FALSE) +
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
   theme(text = element_text(size=12))
-
 #Display the predictions versus actual recidivism rate averages
 grid.arrange(gender_factor.bi.all.dec, gender_factor.bi.all.recid, ncol = 2)
 grid.arrange(race_factor.bi.all.dec, race_factor.bi.all.recid, ncol = 2)
@@ -454,6 +422,7 @@ grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
 ```
 
 # **Section 2: Methodology and Models**
+
 
 **Splitting Data**
 Prior to starting the data mining process, we randomly split the data into training and validation sets. 
@@ -463,7 +432,6 @@ Here we create a column `is.cv` where `train.dat` is a subset of the data whose 
 set.seed(12)
 recid.new$is.cv <- sample(c(0,1,2), size = nrow(recid.new), replace=TRUE, prob = c(0.7, 0.1, 0.2))
 prop.table(table(recid.new$is.cv))
-
 train.dat <- subset(recid.new, subset = is.cv == 0)
 cv.dat <- subset(recid.new, subset = is.cv == 2)
 test.dat <- subset(recid.new, subset = is.cv == 1)
@@ -502,14 +470,12 @@ fullmodel <- any_recid_2yr ~ crime_factor +
                             juv_other_count +
                             juv_other_bi +
                             length_of_stay
-
 #Choosing variables - use fullmodel as the input
 recid.subsets <- regsubsets(fullmodel,
                             data = recid.new,
                             nbest = 1,
                             nvmax = 15,
                             method = "exhaustive")
-
 par(mfrow = c(1, 2))
 #AIC Chart
 plot(x = summary(recid.subsets)$cp, xlab = "Number of Variables", ylab = "Mallow's CP")
@@ -529,11 +495,114 @@ Depending on the metric used, the best-performing model uses somewhere between `
 kable(coef(recid.subsets, 7), format = "markdown")
 ```
 
-**Model outcome**  
+***Another Method in Deciding which Variables to Use:***
+**PCA**    
+PCA attempted by Sormeh:
+
+- If we want to see if PCA will work well on this data, we look first to see if there are many correlated variables.
+- We use a pairs plot to see correlation:
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.4/strwidth(txt)
+    text(0.5, 0.5, txt, cex = pmax(1, cex.cor * r))
+}
+
+pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
+
+```
+- Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. 
+- `priors_count` and `length_of_stay` along with `length_of_stay` and `crime_factor` seem to have the high correlations relative to the others (0.11)
+- `age_factor` and `juv_other_count` have high correlations relative to the other pairs (0.14)
+- `priors_count` and `crime_factor` have high correlations relative to the other pairs (0.15)
+- `priors_count` and `age_factor` have high correlations relative to the other pairs (0.18)
+- `priors_count` and `juv_fel_count` have high correlations relative to the other pairs (0.19)
+- `juv_misd_count` and `juv_other_count` have high correlations relative to the other paris (0.26)
+- `priors_count` and `juv_misd_count` have high correlations relative to the other pairs (0.27)
+- Since none of these pairs are extremely correlated, the PCA method of determining which features capture the best variation in the data. 
+
+We might still want to attempt PCA
+- We first want to normalize the data in order to standaradize each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.
+- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way
+```{r}
+recid.new.sub <- recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
+recid.new.sub <- na.omit(recid.new.sub)
+recid.new.scaled <- scale(recid.new.sub) # This normalizes the data
+
+recid.pca <- princomp(recid.new.scaled) # Perform PCA
+recid.pca$loadings = -recid.pca$loadings
+recid.pca$scores = -recid.pca$scores
+
+
+biplot(recid.pca, scale = 0) # construct biplot
+## Add grid lines
+abline(v=0, lty=2, col="grey50")
+abline(h=0, lty=2, col="grey50")
+
+### THIS FANCY PLOT CODING THING I TRIED RIGHT HERE IS FROM 
+## benjaminbell.co.uk/2018/02/principal-components-analysis-pca-in-r.html
+## I tried, but it isn't working out exactly the way I wanted it to.
+## Might just delete this plot altogether, but left it so you could observe the labor of my work, because sadly it took me a decent amount of time
+## Create groups
+pch.group <- c(rep(21, times=16), rep(22, times=14), rep(24, times=3))
+col.group <- c(rep("skyblue2", times=16), rep("gold", times=14), rep("green2", times=3))
+
+## Plot individuals
+summary.recid.pca <- summary(recid.pca)
+p <- prcomp(recid.new.scaled)
+#p$x[,1:2]
+s <- summary(p)
+#recid.pca
+plot(p$x[,1], p$x[,2], xlab=paste("PCA 1 (", round(s$importance[2]*100, 1), "%)", sep =""), ylab=paste("PCA 2 (", round(s$importance[5]*100, 1), "%)", sep=""), pch=pch.group, col="black", bg=col.group, cex=2, las=1, asp=1)
+
+
+## Add grid lines
+abline(v=0, lty=2, col="grey50")
+abline(h=0, lty=2, col="grey50")
+
+## Add labels
+text(p$x[,1], p$x[,2], labels=row.names(p$x), pos=c(1,3,4,2), font=2)
+
+```
+
+We started with 6 dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each of the points is labeled in terms of the individual in the system that it corresponds to and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, and it also has a z1 value and z2 value, and that is how it's being plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. The vectors for each variable are aligned with positive component 1 values (except for `age`), meaning that the new component 1 axis reflects counts of misdemeanors and felonies, and length of stay in a prison/jail, which is related to those. The Component 2 axis therefore reflects age, showing that individuals with lower age are ones with higher recidivism rates after 2 years, and the older you are, the lower your recidivism rate after two years. 
+
+ When looking at this plot, we see that individuals plotted in the same direction/location as the vectors are the ones that are highly identified by the vector factors. For example, individual 5130 will have a high `juv_other_count` (second component variation), but will have a lower `length_of_stay` (first component variation) than individual 1526.  Furthermore, this process has now ensured that the 6 columns are uncorrelated with one another.
+ 
+The plot allows us to see that certainly `age` is highly uncorrelated with all the other variables, `juv_other_count` and `juv_misd_count` are more correlated with each other, while `juv_fel_count`, `length_of_stay` and `priors_log` can be considered another correlated group.
+
+Unfortunately because of the density of the data the plot is a bit more challenging to read, but we do find it useful to highlight correlations that were otherwise less obvious in the pairs plot.
+ 
+ 
+    
+**Update needed: make this graph prettier, and explain it**
+**left here because unsure if this is preferred to the one above, the one without the colorful points**
+Initial PCA work showed the following relationship between numeric predictor variables.
+```{r}
+#PCA
+#This will require some analysis from someone who understands it??
+recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>%
+  as.data.frame() %>%
+  prcomp(scale = TRUE) %>%
+  biplot(scale = 0, cex = c(0.1, 1))
+
+```
+
+
+***Model outcome***  
+
 Based on the findings above about which variables to include, the results of the logistic regression are below:  
 
-```{r, message = FALSE, echo = FALSE}
-# 5189.5
+## Logistic Regression Model
+
+**Training the Model**
+```{r, echo = FALSE}
+
 glm.logit <- glm(any_recid_2yr ~
                    crime_factor +
                    age +
@@ -544,29 +613,43 @@ glm.logit <- glm(any_recid_2yr ~
                    length_of_stay,
                  data=train.dat,
                  family = binomial)
-summary(glm.logit)
-kable(coef(summary(glm.logit)), digits= 3)
+#summary(glm.logit)
+kable(coef(summary(glm.logit)), digits= 4)
+
+train.pred.logit <- predict(glm.logit, type = "response")
+
+confusion.glm = ifelse(train.pred.logit > 0.5, "1", "0")
+confusions.pred = table(confusion.glm, train.dat$any_recid_2yr)
+confusions.pred
+
+# Misclassification
+paste("Misclassification Rate (with cv.dat):")
+1- sum(diag(confusions.pred)) / sum(confusions.pred)
+qplot(train.pred.logit, geom="histogram")
+
+## ROC plot
+roccurve <- roc(glm.logit$y, train.pred.logit)
+plot(roccurve)
+
 ```
+In the ROC plot we want the probability of True Positives found (Sensitivity) to be as high as possible, while the probability of False Positives (Specificity) to be as low as possible. Therefore, we want to set a threshold that results in the highest TPR and lowest FPR. **NOT SURE IF THIS SHOULD BE INCLUDED IF WE DON'T DO WORK SETTING A THRESHOLD...AND I DON'T KNOW HOW TO DO THAT.**
+
+
 
 **Model Validation**  
 **Update needed: edit this text to explain the CV process. Also, should we stop the output from printing or kable it?**    
-Use the model above to make a prediction for any_recid_2yr (using the cross-validation data)
-I tried this two different ways, but I'm not certain which one is the right way. One is from class, the other is from the r documentation page on the web.
-I think eventually we would compare the misclassification rate here with the test data if this is the one we decide on. Otherwise we compare it to the misclassification rate of the other models to pick the best model.
+We use the model above to make a prediction for any_recid_2yr (using the cross-validation data)
+
+The predict function is used on our glm logistic regression model to predict the probability that a person will recidivate two years after their initial arrest. The `type="response"` option tells R to output probabilities of the form P(Y=1 | X). The data given to validate the training model is `is.cv = 2` or `cv.dat`, which is a subset of 20% the original dataset. 
+
 ```{r, message = FALSE}
 glm.logit.predict = predict(glm.logit, cv.dat, type="response")
 
-##what is the actual difference here????
-p2 <- predict(glm.logit, cv.dat, interval="prediction")
-paste("glm prediction with type response:")
-glm.logit.predict[1:10]
-paste("glm prediction with type prediction:")
-p2[1:10]
-
-
 confusion.glm = ifelse(glm.logit.predict > 0.5, "1", "0")
 confusions.pred = table(confusion.glm, cv.dat$any_recid_2yr)
+dimnames(confusions.pred)[[1]] = c("No","Yes")
 confusions.pred
+
 
 
 # Misclassification
@@ -574,28 +657,43 @@ paste("Misclassification Rate (with cv.dat):")
 1- sum(diag(confusions.pred)) / sum(confusions.pred)
 qplot(glm.logit.predict, geom="histogram")
 
+#logit.tab = table(predicted = glm.logit.predict$class,
+#                actual = train.dat$any_recid_2yr)
+#lda.tab
+#lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
+#lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
+#lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
+#kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
+#             Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
+#             Specificity = scales::percent(lda.spec, accuracy = 0.1)),
+#      format = "markdown")
+
+## ROC curve: "Receiver Operating Characteristics Curve traces the percentage of true positives accurately predicted by a given logit model as the prediction probability cutoff is lowered from 1 to 0 [...] The greater the area under the ROC curve, better the predictive ability of the model."
+
+#plotROC(cv.dat$any_recid_2yr, glm.logit.predict)
+paste("Accuracy:")
+logit.acc <- sum(diag(confusions.pred)) / sum(confusions.pred)
+logit.acc
+paste("Sensitivity Rate:")
+logit.sens <- sensitivity(confusions.pred)
+logit.sens
+paste("Specificity Rate:")
+logit.spec <- specificity(confusions.pred)
+logit.spec
+
+## Plot ROC curve
+
+
+
 
 ```
 
-The histogram shows us estimated probabilities from our logistic regression.
+The histogram shows us estimated probabilities from our logistic regression. 
+
+The model run with the validation dataset gives us a better accuracy than the training dataset. 
 
 ***2a.2 Linear Discriminant Analysis (LDA)***
-**Choosing Variables**    
-We used PCA to determine which variables to use:
-    
-**Update needed: make this graph prettier, and explain it**   
-Initial PCA work showed the following relationship between numeric predictor variables.
-```{r}
-#PCA
-#This will require some analysis from someone who understands it??
-recid.new%>% dplyr::select(age, priors_count, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>%
-  as.data.frame() %>%
-  prcomp(scale = TRUE) %>%
-  biplot(scale = 0, cex = c(0.1, 1))
-```
 
-Additional PCA work showed the following...
-**Update needed: Adding Sormeh's PCA work here**  
 
 **Model Outcome**
 Running an LDA using the above variables, we achieve the following results:
@@ -621,7 +719,6 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.spec, accuracy = 0.1)),
       format = "markdown")
-
 ```
   
 **Model Validation**  
@@ -640,7 +737,6 @@ lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
 tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.cv.spec, accuracy = 0.1))
-
 ```
 
 
@@ -697,12 +793,11 @@ These are approximate plots, they are not capturing any faithful interaction or 
 ```{r, message = FALSE}
 #recid.rf <- randomForest(any_recid_2yr ~ age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
 #                           crime_factor + age_factor + race_factor + gender_factor, data=train.dat, importance = TRUE)
-recid.rf <- randomForest(any_recid_2yr ~ age + juv_fel_count + juv_misd_count + juv_other_count + priors_count + crime_factor + age_factor + race_factor + gender_factor, data=train.dat, importance = TRUE)
+recid.rf <- randomForest(any_recid_2yr ~ age + juv_fel_count + juv_misd_count + juv_other_count + priors_count + crime_factor + age_factor + race_factor + gender_factor, data=train.dat, mtry=9, importance = TRUE)
 
-plot(recid.rf)
+#plot(margin(recid.rf))
 
-varImpPlot(recid.rf)
-
+varImpPlot(recid.rf, main="Variable Importance by Factor")
 partialPlot(recid.rf, train.dat, priors_count)
 partialPlot(recid.rf, train.dat, age)
 partialPlot(recid.rf, train.dat, age_factor)
@@ -712,10 +807,33 @@ partialPlot(recid.rf, train.dat, crime_factor)
 partialPlot(recid.rf, train.dat, juv_other_count)
 partialPlot(recid.rf, train.dat, juv_misd_count)
 partialPlot(recid.rf, train.dat, juv_fel_count)
-
 #partialPlot()
+paste("Importance of each variable:")
 imp.recid <- importance(recid.rf)
 imp.recid
+
+
+## From the book
+recid.test=cv.dat[,"any_recid_2yr"]
+yhat.rf <- predict(recid.rf, newdata=cv.dat)
+
+small.rf <- randomForest(any_recid_2yr ~ age + juv_misd_count + priors_log, data=train.dat, mtry=3, importance = TRUE)
+importance(small.rf)
+
+## Plot prediction interaction attempt
+#library(randomForestExplainer)
+#cv.dat <- na.omit(cv.dat)
+#plot_predict_interaction(recid.rf, cv.dat, "rm", "lstat")
+
+## From cran.r-project.org/web/packages/randomForestExplainer/vignettes/randomForestExplainer.html
+## I'm going to try with a smaller forest:
+## This still did not run for me....it took forever and I quit it
+## If interested in figuring out, please do, by all means.
+#small.rf <- randomForest(any_recid_2yr ~ age + juv_misd_count + priors_log, data=train.dat, mtry=3, importance = TRUE)
+
+#importance_frame <- measure_importance(small.rf)
+#plot_importance_ggpairs(importance_frame)
+
 
 ## For some reason this is not plotting everything out...
 #imp.recid <- importance(recid.rf)
@@ -734,13 +852,15 @@ imp.recid
 #    partialPlot(ozone.rf, airquality, impvar[i], xlab=impvar[i],
 #                main=paste("Partial Dependence on", impvar[i]),
 #                ylim=c(30, 70))
-
 ```
+It seems like the decrease accuracy
+Please see stats.stackexchange.com/questions/197827/how-to-interpret-mean-decrease-in-accuracy-and-mean-decrease-gini-in-random-fore
+for better information on how to interpret these.... I will work on this post-exam, definitely, if no one else has figured it out :) 
+
 
 Decision Tree Work - added by Kayla w/ HW 5 as reference (1pm on 5.8)
 **Update needed: edit to combine w/ SY work. Also, figure out whether a regression tree counts a decision tree, or whether we should be doing something different than the HW**  
 ```{r, message = FALSE}
-
 #### CREATE A TREE ####
 #Use rpart for Recursive Partitioning and Regression Trees
 #Include all relevant variables that Moses listed above (which I have placed in an object called)
@@ -750,33 +870,21 @@ recid.tree1 <- rpart(formula = fullmodel, data = train.dat)
 recid.tree2 <- as.party(recid.tree1)
 plot(recid.tree2, pretty = 1)
 print(recid.tree2)
-
-
-
 #### GROW A LARGER TREE TO PRUNE ####
 #In line with the homework parameters,  the code below grows a tree to a complexity parameter value of `cp = 0.002`, while ensuring that no single node contains fewer than `minsplit = 100` observations.
 recid.tree3 <- rpart(fullmodel, data = train.dat, control = rpart.control(minsplit=100, cp=0.002))
-
 #Directions:  Run the `plotcp` command on this tree to get a plot of the Cross-validated error.  Also look at the `cptable` attribute of `marketing.full`.  Observe that all of the errors are reported relative to that of the 1-node "tree". 
 plotcp(recid.tree3)
 recid.tree3$cptable
-
-
 #### EXAMINE TREE ABOVE TO DECIDE WHICH MODEL TO USE ####
 #Directions: Apply the 1-SE rule to determine which value of `cp` to use for pruning.  Print this value of `cp`.
 #KR NOTE: Should understand this better
 xerr <- recid.tree3$cptable[which.min(recid.tree3$cptable[,"xerror"]), "xerror"]+ 
   recid.tree3$cptable[which.min(recid.tree3$cptable[,"xerror"]), "xstd"]
-
 cp.index <- which.min(recid.tree3$cptable[, "xerror"][(recid.tree3$cptable[, "xerror"]>xerr)])
-
 cp.use <- recid.tree3$cptable[, "CP"][cp.index]
-
 cp.use
-
-
 #### PRUNE AND DISPLAY ###
-
 recid.tree4 <- prune(recid.tree3, cp = cp.use)
 recid.tree5 <- as.party(recid.tree4)
 plot(recid.tree5)
@@ -786,7 +894,6 @@ print(recid.tree5)
 Random Forest Work - added by Kayla w/ HW 5 as reference (1pm on 5.8)
 ```{r, cache = TRUE}
 # Directions: Use the `randomForest` command`.  Show a print-out of your random Forest fit.  This print-out contains a confusion matrix. Predicted classes are given as columns in this table. 
-
 #Note: won't accept full model b/c syntax
 recid.rf <- randomForest(as.factor(two_year_recid) ~ crime_factor + age + age_factor + 
     race_factor + gender_factor + priors_count + juv_fel_count + juv_misd_count + juv_other_count + length_of_stay, data = train.dat)
@@ -801,14 +908,12 @@ varImpPlot(recid.rf)
 Compare random forest and pruned tree
 ```{r}
 # Directions: use the `predict` command to obtain probability estimates on the test data. Use your `classMetrics` function to calculate performance metrics at `cutoff = 0.3`.  Compare the metrics to those of the pruned tree `marketing.pruned` at the same `cutoff`.
-
 #CHECK WORK ON THIS
 #pruned 
 pruned.predict <- predict(recid.tree5, newdata = cv.dat, type = "prob") 
 confusionMatrix(data = as.factor(ifelse(pruned.predict[, 1] > 0.3, 1, 0)), 
                 reference = as.factor(as.numeric(cv.dat$two_year_recid)), 
                 dnn = c("Prediction", "Reference"))
-
 #random forest
 rf.predict <- predict(recid.rf, newdata = cv.dat, type = "prob") 
 confusionMatrix(data = as.factor(ifelse(rf.predict[, 1] > 0.3, 1, 0)), 
@@ -827,14 +932,14 @@ To decide between models, we looked at three measures of error:
     -**Specifity**: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is the most important measure because it keeps innocent people from receiving harsh punishments.  
    -**Sensitivity**: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.  
   
-**Statistics for the best version of each data mining method**    
+**Summary Statistics for the best version of each data mining method**    
 **Update needed: fill in this whole thing and perhaps round or format better. Then add a discussion of it.** 
 
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
-| Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |`r lda.cv.acc`` | `r lda.cv.sens``  |`r lda.cv.spec`|  
-| Quadratic Discriminant Analysis (QDA)      |`r qda.cv.acc`` | `r qda.cv.sens``  |`r qda.cv.spec`|  
+| Logistic regression                        |`r logit.acc`   | `r logit.sens`   |`r logit.spec` |  
+| Linear Discriminant Analysis (LDA)         |`r lda.cv.acc`  | `r lda.cv.sens`  |`r lda.cv.spec`|  
+| Quadratic Discriminant Analysis (QDA)      |`r qda.cv.acc`  | `r qda.cv.sens`  |`r qda.cv.spec`|  
 | Decision Tree                              |                |                  |             |  
 | Random Forest (RF)                         |                |                  |             |  
 
@@ -914,7 +1019,6 @@ colnames.all <- colnames(recid.all)
 colnames.vio <- colnames(recid.vio)
 #Print full list of columns in ProPublica's dataset (listed on their github as compas-scores-two-years)
 colnames.all
-
 #Print columns that differ - these ended up being irrelevant
 # colnames.vio[(colnames.vio != colnames.all)]
 # colnames.all[(colnames.vio != colnames.all)]
@@ -923,7 +1027,6 @@ colnames.all
 The tables below show the checks that were run to determine that ProPublica's "violent recidivsm" dataset was a subset of the "all recidivism" dataset. Additionally, these checks helped us learn that we should use the two-year recidivism varible instead of the is_recid variable. 
 
 ```{r, message = FALSE, echo = FALSE}
-
 #Check how the recidivism variables relate
 kable(recid.all %>%
   group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
@@ -938,25 +1041,20 @@ After substantial discussion, we decided to use the full dataset for all analyse
 
 **New Variables**  
 ```{r, message = FALSE}
-
 kable(recid.new%>%
   count(any_recid_2yr, two_year_recid), caption = "Outcome variable 1: any recidivism within 2 years")
-
 kable(recid.new%>%
   count(vio_recid_2yr, two_year_recid, is_violent_recid), caption = "Outcome variable 2: violent recidivism within 2 years")
-
 kable(recid.new%>%
   count(juv_fel_bi, juv_fel_count), caption = "Yes/No version of Juvenile Felonies")
-
 kable(recid.new%>%
   count(juv_misd_bi, juv_misd_count), caption = "Yes/No version of Juvenile Misd.")
-
 kable(recid.new%>%
   count(juv_misd_bi, juv_misd_count), caption = "Yes/No version of Juvenile Other Events")
-
 ```
 
-The table below shows variables that we dropped because they were redundant:  
+The table below shows variables that we dropped because they were redundant: 
+
 **Redundant Variables**  
 ```{r}
 kable(recid.all %>%
