@@ -898,8 +898,8 @@ tree.sens <- sensitivity(confusions.tree)
 tree.spec <- specificity(confusions.tree)
 #logit.spec
 kable(tibble(Accuracy = scales::percent(tree.acc, accuracy = 0.1),
-             Sensitivity = scales::percent(tree.acc, accuracy = 0.1),
-             Specificity = scales::percent(tree.acc, accuracy = 0.1)),
+             Sensitivity = scales::percent(tree.sens, accuracy = 0.1),
+             Specificity = scales::percent(tree.spec, accuracy = 0.1)),
       format = "markdown")
 ```
 
@@ -1076,4 +1076,4 @@ kable(recid.all %>%
         count(crime_factor, c_charge_degree))
 kable(recid.all %>%
         count(race_factor, race))
-```
+``` 
