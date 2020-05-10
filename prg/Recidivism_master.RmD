@@ -5,59 +5,11 @@ author: "Group 12: Moses Hetfield, Sormeh Yazdi, and Kayla Reiman"
 date: "May 2020"
 output: html_document
 ---
-
-# **Team Notes**
-****Delete this notes section eventually****  
-
-**data questions**
-- What is jouvenile other count?  
-- Confirming: 1 row per person
--Does violent mean original crime or later?  
-- How did ProPublica decide on a logistic regression using low/high as the outcome?  
-`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`    
-- Why are the datasets of violent crimes and regular crimes separate in this way?
-- Is NB a reasonable model to use in this  scenario? If so, can you help us troubleshoot Sormeh's code? If not, we're inclined to cut it. 
-- To confirm, are ROC and Lift charts for both choosing model and choosing between model?
-- Decision trees: will you release answers for HW 5?
-- c_charge_degree: clean into factor with "other"? 
-
-#### **To do list**       
-   + Validation: Figure out how we should be splitting our data into training/validation from the beginning so we don't make [this mistake](https://canvas.cmu.edu/courses/14656/files/4676325?module_item_id=4438423). Then document it at the start of section 2.  
-   + Improve KR's descriptions of possible models in 2a.1: Model Selection and validation. You can use the book's section called "4.5 A Comparison of Classification Methods" as a resource. Then decide which models to use.
-   + Do the decision tree
-   + Do the random forrest
-   + Moses: write up all the steps of choosing vars when you have a chance so it's part of the deliverable; learn how to do branch stuff and teach the rest of us at 6pm
-   + Kayla: spend more time looking at code
-   + Sormeh: figure out how one is supposed to choose variables in the logistic regression and send us what you have before doc appt. 
-
-
-
-#### **Tasks for later**   
-* **Medium level of effort**
-   + Model Selection and validation (2a.1): run our first model!
-* **High level of effort**
-   + Figure out the best version of a given model (ex. logistic regression) using test/training error and figuring out if we can incorporate sensitivity/specifity in choosing the version of the model.
-   + Compare models (ex. logistic regression vs. random forrest)
-   + Make pretty pictures about how our models performed (lift charts, ROC curves, sensitivity vs. specificity)
    
-#### **List of resources**
-[Our github repo](https://github.com/kaylareiman1/RecidivismPrediction)  
-[ProPublica main article]( https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
-[ProPublica methodology]( https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
-[ProPublica github]( https://github.com/propublica/compas-analysis)  
-[Raw version of COMPAS survey]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)  
-[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
-[Article on Risk, Race, and Recidivism]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)  
-[Original publication by COMPAS creator]( http://www.northpointeinc.com/files/publications/Criminal-Justice-Behavior-COMPAS.pdf)  
-[Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)  
-[Project description on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4443203)  
-
-
-****End of team notes**** 
 
 ```{r global_options, include=FALSE}
 #This code chunk sets up the HTML output to not show code by default.  
-#knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
 ```{r, warning = FALSE, message = FALSE}
@@ -79,6 +31,7 @@ library(dplyr)        # data transformation, just trying to see if works (naive 
 library(caret)        # naive bayes package
 library(h2o)          # naive bayes package
 library(MASS)         # For LDA
+library(pROC)
 #Format numbers so that they are not in scientific notation.
 options(scipen = 4)
 ```
@@ -93,7 +46,7 @@ In 2016, ProPublica published a [story](https://www.propublica.org/article/machi
 | Labeled Lower Risk, Yet Did Re-Offend      |            47.7%|            28.0% |
 
 #### **Additional information on the COMPAS**    
-The COMPAS is widely used across states [add more here from ProPublica article]. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved can be linked to poverty...[add more here from]  
+The COMPAS is widely used across states [add more here from ProPublica article]. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved can be linked to poverty.  
 
 #### **Prompt**    
 * Using the available data, construct a Risk Assessment Instrument (RAI) for predicting two-year recidivism.   
@@ -118,17 +71,22 @@ Our goal is to investigate whether it is possible to create a Risk Assessment In
 #### **Data**
 This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, although we drop the same observations (rows) as they do, we have adapted their code so that it does not drop any attributes (columns) because this would be bad practice for data mining.  
 
-```{r, message = FALSE}
+```{r, warning = FALSE, message = FALSE, cache = TRUE}
 ###################################
 # Read in all ProPublica datasets #
 ###################################
+#compas.scores.raw <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-raw.csv")
+#compas.scores <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores.csv")
+#compas.scores.two.years <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years.csv")
+#compas.scores.two.years.violent <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\compas-scores-two-years-violent.csv")
+#cox.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-parsed.csv")
+#cox.violent.parsed <- read_csv("C:\\Users\\uukay\\OneDrive\\Documents\\mini4\\Data Mining\\Final project\\RecidivismPrediction\\datasets\\cox-violent-parsed.csv")
 compas.scores.raw <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-raw.csv", header=T)
 compas.scores <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores.csv", header=T)
 compas.scores.two.years <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-two-years.csv", header=T)
 compas.scores.two.years.violent <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-two-years-violent.csv", header=T)
 cox.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-parsed.csv", header=T)
 cox.violent.parsed <- read.csv("https://raw.githubusercontent.com/propublica/compas-analysis/master/cox-violent-parsed.csv", header=T)
-
 ####################################
 # Adapt ProPublica's Data Cleaning #
 ####################################
@@ -140,7 +98,9 @@ cox.violent.parsed <- read.csv("https://raw.githubusercontent.com/propublica/com
       #   + people who had either recidivated in two years  
       #   + had at least two years outside of a correctional facility.  
 #Unlike ProPublica, we won't be dropping any attributes because that may bias our model.
+######################
 ### All recidivism ###
+######################
 #Dropping bad data
 recid.all <-compas.scores.two.years %>% 
         filter(days_b_screening_arrest <= 30) %>%
@@ -158,7 +118,9 @@ recid.all <- mutate(recid.all, crime_factor = factor(c_charge_degree)) %>%
       mutate(gender_factor = factor(sex, labels= c("Female","Male"))) %>%
       within(gender_factor <- relevel(gender_factor, ref = 2)) %>%
       mutate(score_factor = factor(score_text != "Low", labels = c("LowScore","HighScore")))
+##########################
 ### Violent recidivism ###
+##########################
 #Dropping bad data
 recid.vio <- compas.scores.two.years.violent %>% 
         filter(days_b_screening_arrest <= 30) %>%
@@ -167,7 +129,6 @@ recid.vio <- compas.scores.two.years.violent %>%
         filter(c_charge_degree != "O") %>%
         filter(v_score_text != 'N/A')
 #Recoding variables
-#KR note: Why is race coded differently? Is there a mistake?
 recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
       mutate(age_factor = as.factor(age_cat)) %>%
       within(age_factor <- relevel(age_factor, ref = 1)) %>%
@@ -186,255 +147,9 @@ recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
 
 # **Section 1: Exploratory Data Analysis**
 
+#### **1a: Overview of ProPublica's Datasets**  
 
-#### **1a: Overview of datasets**  
-[KR note: must check whether 1 person per row or different row driver]
-
-This project uses 2 datasets from [ProPublica's github repository]( https://github.com/propublica/compas-analysis), which are described in the table below:  
-  
-| Dataset name | original obs | obs after cleaning | # varibles |
-|--------------|--------------|--------------------|------------|   
-| recid.all    | 7214         | 6172               | 59         |    
-| recid.vio    | 4743         | 4020               | 59         |    
-
-Out of the 59 variables in each dataset, we first looked at the variables in the logistic that ProPublica ran to see how well recidivism could predict whether somebody was flagged as low-risk. Their code is pasted below:  
-`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
-
-An overview of variables that ProPublica used is below: 
-   - two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset.   
-   - score_factor: the binary variable indicating low risk vs. medium/high risk.
-   - Other covariates: 
-      -gender_factor: male vs. female
-      -age_factor: a 3-level categorical variable for age
-      -race_factor: from the original race variable. As will be shown below, most categories have very few observations.  
-      -crime_factor: felonies vs. misdimeanors
-      -priors_count: prior infractions
-      
-A list of all of the variables in the dataset is shown below:
-```{r, warning = FALSE, message = FALSE, echo = TRUE}
-#It'll be ideal if we can delete this section eventually (or make it prettier). However, I'm leaving this here so you can get to know the data better without running everything from scratch.
-colnames.all <- colnames(recid.all)
-colnames.vio <- colnames(recid.vio)
-#Print full list of columns
-colnames.all
-#Print columns that differ
-colnames.vio[(colnames.vio != colnames.all)]
-colnames.all[(colnames.vio != colnames.all)]
-```
-
-
-Given the multiple posibilities for recidivism outcome variables, the tables below show the checks that were run to determine that two_year_recid is the correct outcome variable to use in both datasets. These checks also helped us determine that the ProPublica's "violent recidivsm" dataset was a subset of the "all recidivism" dataset. Therefore, the rest of our project uses dataset for all recidivism - nicknamed recid.all.  
-
-```{r, message = FALSE}
-#Check how the recidivism variables relate
-kable(recid.all %>%
-  group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
-  summarize(count = n()), caption = "How variables relate in recid.all dataset")
-kable(recid.vio %>%
-  group_by (two_year_recid, two_year_recid.1, is_recid, is_violent_recid, violent_recid) %>%
-  summarize(count = n()), caption = "How variables relate in recid.vio dataset")
-```
-
-#### **1b: Demographic Characteristics**
-**Note: These graphs use the full dataset (not limited to violent crime)**
-The univariate graphs below show that the most categories in the dataset were men, black people, and those between the age of of 20 and 45.
-```{r, message = FALSE}
-#These three graphs are identical, except with different input variables.
-gender_factor.uni.all <- ggplot(recid.all, aes(x=gender_factor))
-gender_factor.uni.all + 
-  geom_bar(stat = "count", na.rm = F) + 
-  ggtitle("Univariate Gender Breakdown") + 
-  guides(fill = FALSE) + 
-  xlab("Gender") + 
-  ylab("Number of People")
-race_factor.uni.all <- ggplot(recid.all, aes(x=race_factor))
-race_factor.uni.all + 
-  geom_bar(stat = "count", na.rm = F) + 
-  ggtitle("Univariate Race Breakdown") + 
-  guides(fill = FALSE) + 
-  xlab("Race") + 
-  ylab("Number of People")
-age_factor.uni.all <- ggplot(recid.all, aes(x=age_factor))
-age_factor.uni.all + 
-  geom_bar(stat = "count", na.rm = F) + 
-  ggtitle("Univariate Age Breakdown") + 
-  guides(fill = FALSE) + 
-  xlab("Age") + 
-  ylab("Number of People")
-```
-
-#### **1c: Recidivism Rates**  
-The table below shows how common two-year recidivism of both types was in our dataset.
-```{r, message = FALSE}
-rate.all <- recid.all %>%
-  summarize(100*round(mean(two_year_recid), 2))
-rate.vio <- recid.vio %>%
-  summarize(100*round(mean(two_year_recid), 2))
-```
-
-| Dataset                                |Two-year Rate |
-|----------------------------------------|--------------|
-| All recidivism (recid.all)             | `r rate.all`%|
-| Violent recidivism (recid.vio)         | `r rate.vio`%|
-
-#### **1d: COMPAS Predictions**
-The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable called score_factor with two categories.  
-
-```{r, warning = FALSE, message = FALSE}
-#Create histograms of decile scores for all crime, color coded by the category. 
-ranking.all <- ggplot(recid.all, aes(x=decile_score, fill = score_text))+
-  geom_bar(stat = "count", bin = 1) +
-  ggtitle("Prediction Metrics\nAll data") + 
-  xlab("Prediction") + 
-  guides(fill = FALSE) + 
-  ylab("Number of people") 
-#Note that v_score_text and v_decile_score are different from decile_score and score_text
-ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
-  geom_bar(stat = "count", bin = 1) +
-  ggtitle("Prediction Metrics\nViolence data") + 
-  xlab("Prediction")+ 
-  ylab(NULL)
-grid.arrange(ranking.all, ranking.vio, ncol = 2)
-```
-
-#### **1e: Accuracy of Predictions by Demographic Group**
-[KR note to team: I actually expected these wouldn't look alike at all. But by the time I finished this, I'd spent so much time adapting code from our good ol' NLSY project that now I want to keep them.]
-Initial data exploration showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
-   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing [cite Michelle Alexander].  
-   - This includes no interactions between terms demographic characteristics (ex. race and gender)  
-   - As ProPublica pointed out, these charts do not differentiate between false positives and false negatives.   
-   
-Additionally, we already know from the univariate race graphs that the recidivism rates for groups other than White, Hispanic, and African-American people will be distorted by a small sample size. [KR note: perhaps we should drop these obs or create a new race var?]
-
-```{r, warning = FALSE, message = FALSE}
-#Note -- just copying and pasting same charts for different characteristics. Could create a function instead. Also, note that I only ran this for recid.all because running it for recid.vio seemed like too many charts. 
-### gender_factor ###
-# Bivariate w/ decile score 
-gender_factor.bi.conf.all <- recid.all %>%
-  group_by(gender_factor) %>%
-  summarize(Avgdecile_score = mean(decile_score),
-            upper = t.test(decile_score)$conf.int[1],
-            lower = t.test(decile_score)$conf.int[2])
-gender_factor.bi.all.dec <- ggplot(data = gender_factor.bi.conf.all, aes(x = gender_factor, y = Avgdecile_score)) +  geom_bar(stat = "identity") +
-  xlab("gender_factor") + 
-  ylab("Average prediction") +
-  ggtitle("Prediction from COMPAS") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
-  theme(text = element_text(size=12))
-# Bivariate w/ recid 
-gender_factor.bi.conf.all <- recid.all %>%
-  group_by(gender_factor) %>%
-  summarize(Avgtwo_year_recid = mean(two_year_recid),
-            upper = t.test(two_year_recid)$conf.int[1],
-            lower = t.test(two_year_recid)$conf.int[2])
-gender_factor.bi.all.recid <- ggplot(data = gender_factor.bi.conf.all, aes(x = gender_factor, y = Avgtwo_year_recid)) +
-  geom_bar(stat = "identity") +
-  xlab("gender_factor") + 
-  ylab("Average Rate") +
-  ggtitle("Actual 2-year Recidivism") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
-  theme(text = element_text(size=12))
-### RACE ###
-# Bivariate w/ decile score 
-race_factor.bi.conf.all <- recid.all %>%
-  group_by(race_factor) %>%
-  summarize(Avgdecile_score = mean(decile_score),
-            upper = t.test(decile_score)$conf.int[1],
-            lower = t.test(decile_score)$conf.int[2])
-race_factor.bi.all.dec <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgdecile_score)) +  geom_bar(stat = "identity") +
-  xlab("Race") + 
-  ylab("Average prediction") +
-  ggtitle("Prediction from COMPAS") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
-  theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
-# Bivariate w/ recid 
-race_factor.bi.conf.all <- recid.all %>%
-  group_by(race_factor) %>%
-  summarize(Avgtwo_year_recid = mean(two_year_recid),
-            upper = t.test(two_year_recid)$conf.int[1],
-            lower = t.test(two_year_recid)$conf.int[2])
-race_factor.bi.all.recid <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgtwo_year_recid)) +
-  geom_bar(stat = "identity") +
-  xlab("Race") + 
-  ylab("Average Rate") +
-  ggtitle("Actual 2-year Recidivism") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
-  theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
-### AGE ###
-# Bivariate w/ decile score 
-age_factor.bi.conf.all <- recid.all %>%
-  group_by(age_factor) %>%
-  summarize(Avgdecile_score = mean(decile_score),
-            upper = t.test(decile_score)$conf.int[1],
-            lower = t.test(decile_score)$conf.int[2])
-age_factor.bi.all.dec <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgdecile_score)) +  geom_bar(stat = "identity") +
-  xlab("Age") + 
-  ylab("Average prediction") +
-  ggtitle("Prediction from COMPAS") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
-  theme(text = element_text(size=12))
-# Bivariate w/ recid 
-age_factor.bi.conf.all <- recid.all %>%
-  group_by(age_factor) %>%
-  summarize(Avgtwo_year_recid = mean(two_year_recid),
-            upper = t.test(two_year_recid)$conf.int[1],
-            lower = t.test(two_year_recid)$conf.int[2])
-age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgtwo_year_recid)) +
-  geom_bar(stat = "identity") +
-  xlab("age") + 
-  ylab("Average Rate") +
-  ggtitle("Actual 2-year Recidivism") + 
-  guides(fill = FALSE) +
-  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
-  theme(text = element_text(size=12))
-#Display the predictions versus actual recidivism rate averages
-grid.arrange(gender_factor.bi.all.dec, gender_factor.bi.all.recid, ncol = 2)
-grid.arrange(race_factor.bi.all.dec, race_factor.bi.all.recid, ncol = 2)
-grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
-```
-
-# **Section 2: Methodology** 
-**Splitting Data**
-Prior to starting the data mining process, we randomly split the data into training and validation sets. 
-
-Here we create a column `is.cv` where `train.dat` is a subset of the data whose is.cv value is 0 (70% of the recid.all dataset); `cv.dat` is a subset of the data whose is.cv value is 2 (20% of the recid.all dataset); and `test.dat` is a subset of the data whose is.cv value is 1 (10% of the recid.all dataset). Using the `sample` function in r ensures this division is random, and we have set a seed at 1 so that the random division will give the same results when the code is re-run. 
-```{r, message = FALSE}
-set.seed(12)
-recid.all$is.cv <- sample(c(0,1,2), size = nrow(recid.all), replace=TRUE, prob = c(0.7, 0.1, 0.2))
-prop.table(table(recid.all$is.cv))
-train.dat <- subset(recid.all, subset = is.cv == 0)
-cv.dat <- subset(recid.all, subset = is.cv == 2)
-test.dat <- subset(recid.all, subset = is.cv == 1)
-```
-
-**Splitting Data**
-
-#### **2a: Data Mining Methods and Performance**
-**2a.1: Model Selection and validation**   
-**Possible models**  
-Given our task of predicting binary outcomes, we decided to pursue the following methods:  
-   - Logistic regression:  This classification method applies statistical principles to  predicting binary outcomes.     
-   - Linear Discriminant Analysis (LDA): This works when the interaction between predictors is the same across classes.    
-   - Quadratic Discriminant Analysis (QDA): This works when there are class-based interactions among the predictors.    
-   - Random Forest (RF):  This allows for using if/then logic to create decision trees and then combining them.  
-   - Classification Tree: Although not as trustworthy as random forest, the potential for public transparency makes this worth trying.  
-  
-Note: We chose LDA over Naive Bayes because of expected interactions between our predictors.  
-
-PCA first attempted work by Moses:
-```{r}
-#PCA
-#This will require some analysis from someone who understands it??
-recid.all %>% dplyr::select(age, priors_count, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count, decile_score, v_decile_score) %>%
-  as.data.frame() %>%
-  prcomp(scale = TRUE) %>%
-  biplot(scale = 0, cex = c(0.1, 1))
-```
+This project uses data from [ProPublica's github repository]( https://github.com/propublica/compas-analysis). In order to successfully work with their analysis, we ran their data cleaning code and then added our own additional steps. Additional information about our data cleaning process is in the appendix. 
 
 **Choosing Variables**  
 Our dataset has nine variables that could potentially be used to predict recidivism. These include:  
@@ -455,12 +170,11 @@ And two variables relating to the crime itself
    - `length_of_stay` (time incarcerated)  
   
   
-Based on the relationship between some of these variables and two-year recidivism rates, we also looked at modifications of certain variables.  
+Based on the relationship between some of these variables and two-year recidivism rates (represented by `two_year_recid`), we also looked at modifications of certain variables.  
 For instance, a logarithmic scale better captures the relationship between `priors_count` and recidivism than a linear scale:  
   
 ```{r}
-#FOR DISCUSSION: I think everything below needs to use train.dat. Agree?
-ggplot(data = train.dat,
+ggplot(data = recid.all,
        aes(x = priors_count,
            y = two_year_recid)) +
   stat_summary_bin(geom = "line",
@@ -474,7 +188,7 @@ ggplot(data = train.dat,
   
   
 ```{r}  
-ggplot(data = mutate(train.dat, priors_count = log2(priors_count + 1)),
+ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
        aes(x = priors_count,
            y = two_year_recid)) +
   stat_summary_bin(geom = "line",
@@ -488,25 +202,405 @@ ggplot(data = mutate(train.dat, priors_count = log2(priors_count + 1)),
        title = "Log of Priors Varies Linearly with Recidivism Rates")
 ```
   
-  
-  Based on this finding, we chose to add `log2(priors_count + 1)` as a variable. We also added variables indicating whether the defendant had any cases on their juvenile record. We then performed an exhaustive search to select variables to keep for our general linear model. In this case, since our outcome variable `two_year_recid` is binary, we will be applying a logistic regression to classify participants.
+Based on this finding, we chose to add `log2(priors_count + 1)` as a variable called `priors_log`. We also added variables indicating whether the defendant had any cases on their juvenile record.
+
+```{r, message = FALSE}
+#Create new vars following Moses's work looking at what should go into the model
+recid.new <- mutate(recid.all, 
+             any_recid_2yr        = recode_factor(two_year_recid, 
+                                                  `0` = "No",                             
+                                                  `1` = "Yes"),
+             vio_recid_2yr       = as.factor(case_when(two_year_recid != 1 | is_violent_recid != 1 ~ "No",
+                                                   TRUE ~"Yes")),
+              priors_log        = log2(priors_count + 1),
+              juv_fel_bi        =  as.factor(case_when(juv_fel_count   == 0 ~ "No",
+                                                      juv_fel_count    >  0 ~ "Yes")),
+              juv_misd_bi       =  as.factor(case_when(juv_misd_count  == 0 ~ "No",
+                                                      juv_misd_count   >  0 ~ "Yes")),   
+              juv_other_bi      =  as.factor(case_when(juv_other_count == 0 ~ "No",
+                                                      juv_other_count  >  0 ~ "Yes"))
+                    
+                    )
+#Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic varibles are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
+recid.new <- dplyr::select(recid.new, #dataset 
+                          id, #Personal ID
+                          any_recid_2yr, vio_recid_2yr, #Recidivism variables: new -- factors
+                          two_year_recid, is_violent_recid, #Recidivism variables: original -- numeric
+                          juv_fel_bi, juv_fel_count, juv_misd_bi, juv_misd_count, juv_other_bi, juv_other_count, #juvenile variables
+                          priors_count, priors_log, # other personal history
+                          age, age_factor, race_factor, gender_factor, #demographic variables
+                          length_of_stay, crime_factor, #crime vars
+                          v_decile_score, v_score_text, decile_score, score_text #COMPASS predictions (not to be included in our)
+                          
+                        )
+```
+
+After removing redundant variables and those that would be unknown at the time of conviction, our dataset consisted of `r nrow(recid.new)` observations and the following variables: [KR note: delete this if we can't make it smaller or add labels easily]
+
 ```{r}
-#Choosing variables
-recid.subsets <- regsubsets(as.factor(two_year_recid) ~
-                              crime_factor +
-                              age +
-                              age_factor +
-                              race_factor +
-                              gender_factor +
-                              log2(priors_count + 1) +
-                              priors_count +
-                              juv_fel_count +
-                              (juv_fel_count > 0) +
-                              juv_misd_count +
-                              (juv_misd_count > 0) +
-                              juv_other_count +
-                              (juv_other_count > 0) +
-                              length_of_stay,
+kable(colnames(recid.new))
+```
+
+
+#### **1b: Demographic Characteristics**
+The univariate graphs below show that the most categories in the dataset were men, black people, and those between the age of of 20 and 45.
+```{r, message = FALSE}
+#These three graphs are identical, except with different input variables.
+##########
+# GENDER #
+##########
+gender_factor.uni.all <- ggplot(recid.new, aes(x=gender_factor, fill = I("darkblue")))
+gender_factor.uni.all + 
+  geom_bar(stat = "count", na.rm = F) + 
+  ggtitle("Univariate Gender Breakdown") + 
+  guides(fill = FALSE) + 
+  xlab("Gender") + 
+  ylab("Number of People")
+##########
+#  RACE  #
+##########
+race_factor.uni.all <- ggplot(recid.new, aes(x=race_factor, fill = I("darkblue")))
+race_factor.uni.all + 
+  geom_bar(stat = "count", na.rm = F) + 
+  ggtitle("Univariate Race Breakdown") + 
+  guides(fill = FALSE) + 
+  xlab("Race") + 
+  ylab("Number of People")
+##########
+#  AGE   #
+##########
+age_factor.uni.all <- ggplot(recid.new, aes(x=age_factor, fill = I("darkblue")))
+age_factor.uni.all + 
+  geom_bar(stat = "count", na.rm = F) + 
+  ggtitle("Univariate Age Breakdown") + 
+  guides(fill = FALSE) + 
+  xlab("Age") + 
+  ylab("Number of People")
+```
+
+#### **1c: Recidivism Rates**  
+The table below shows how common two-year recidivism of both types was in our dataset.
+```{r, message = FALSE}
+rate.all <- recid.new %>%
+  summarize(100*round(mean(any_recid_2yr == "Yes"), 2))
+rate.vio <- recid.new %>%
+  summarize(100*round(mean(vio_recid_2yr == "Yes"), 2))
+```
+
+| Type                                   |Two-year Rate |
+|----------------------------------------|--------------|
+| All recidivism                         | `r rate.all`%|
+| Violent recidivism                     | `r rate.vio`%|
+
+#### **1d: COMPAS Distributions**
+The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable called score_factor with two categories.  
+
+```{r, warning = FALSE, message = FALSE}
+#Create histograms of decile scores for all crime, color coded by the category. 
+ranking.all <- ggplot(recid.new, aes(x=decile_score, fill = score_text))+
+  geom_bar(stat = "count", bin = 1) +
+  ggtitle("Prediction Metrics\nAll data") + 
+  xlab("Prediction") + 
+  guides(fill = FALSE) + 
+  ylab("Number of people") 
+#Note that v_score_text and v_decile_score are different from decile_score and score_text
+ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
+  geom_bar(stat = "count", bin = 1) +
+  ggtitle("Prediction Metrics\nViolence data") + 
+  xlab("Prediction")+ 
+  ylab(NULL)
+grid.arrange(ranking.all, ranking.vio, ncol = 2)
+```
+
+#### **1e: Accuracy of Predictions by Demographic Group**  
+**Update needed: assess overall accuracy of the COMPAS here instead of at the end. This could be done with a confusion matrix (if looking at factor version) or scatter plot for decile version**  
+
+Data vizualization by demographic group (below) showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
+   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing [**updated needed** cite Michelle Alexander].  
+   - This includes no interactions between terms demographic characteristics (ex. race and gender)  
+   - As ProPublica pointed out, these charts do not differentiate between false positives and false negatives.   
+   
+Additionally, we already know from the univariate race graphs that the recidivism rates for groups other than White, Hispanic, and African-American people will be distorted by a small sample size. 
+
+```{r, warning = FALSE, message = FALSE}
+#Note -- just copying and pasting same charts for different characteristics. Could create a function instead. Also, note that I only ran this for as.numeric(any_recid_2yr) because 2) running it for violent seemed like too many charts.
+##########
+# GENDER #
+##########
+# Bivariate w/ decile score 
+gender_factor.bi.conf.all <- recid.new %>%
+  group_by(gender_factor) %>%
+  summarize(Avgdecile_score = mean(decile_score),
+            upper = t.test(decile_score)$conf.int[1],
+            lower = t.test(decile_score)$conf.int[2])
+gender_factor.bi.all.dec <- ggplot(data = gender_factor.bi.conf.all, aes(x = gender_factor, y = Avgdecile_score, fill = I("darkblue"))) +  geom_bar(stat = "identity") +
+  xlab("gender_factor") + 
+  ylab("Average prediction") +
+  ggtitle("Prediction from COMPAS") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))
+# Bivariate w/ recid 
+gender_factor.bi.conf.all <- recid.new %>%
+  group_by(gender_factor) %>%
+  summarize(Avgtwo_year_recid = mean(two_year_recid),
+            upper = t.test(two_year_recid)$conf.int[1],
+            lower = t.test(two_year_recid)$conf.int[2])
+gender_factor.bi.all.recid <- ggplot(data = gender_factor.bi.conf.all, aes(x = gender_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
+  geom_bar(stat = "identity") +
+  xlab("gender_factor") + 
+  ylab("Average Rate") +
+  ggtitle("Actual 2-year Recidivism") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))
+##########
+# RACE #
+##########
+# Bivariate w/ decile score 
+race_factor.bi.conf.all <- recid.new %>%
+  group_by(race_factor) %>%
+  summarize(Avgdecile_score = mean(decile_score),
+            upper = t.test(decile_score)$conf.int[1],
+            lower = t.test(decile_score)$conf.int[2])
+race_factor.bi.all.dec <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgdecile_score, fill = I("darkblue"))) +  
+  geom_bar(stat = "identity") +
+  xlab("Race") + 
+  ylab("Average prediction") +
+  ggtitle("Prediction from COMPAS") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
+  theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
+# Bivariate w/ recid 
+race_factor.bi.conf.all <- recid.new %>%
+  group_by(race_factor) %>%
+  summarize(Avgtwo_year_recid = mean(two_year_recid),
+            upper = t.test(two_year_recid)$conf.int[1],
+            lower = t.test(two_year_recid)$conf.int[2])
+race_factor.bi.all.recid <- ggplot(data = race_factor.bi.conf.all, aes(x = race_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
+  geom_bar(stat = "identity") +
+  xlab("Race") + 
+  ylab("Average Rate") +
+  ggtitle("Actual 2-year Recidivism") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
+  theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
+##########
+# age  #
+##########
+# Bivariate w/ decile score 
+age_factor.bi.conf.all <- recid.new %>%
+  group_by(age_factor) %>%
+  summarize(Avgdecile_score = mean(decile_score),
+            upper = t.test(decile_score)$conf.int[1],
+            lower = t.test(decile_score)$conf.int[2])
+age_factor.bi.all.dec <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgdecile_score, fill = I("darkblue"))) +  geom_bar(stat = "identity") +
+  xlab("Age") + 
+  ylab("Average prediction") +
+  ggtitle("Prediction from COMPAS") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))
+# Bivariate w/ recid 
+age_factor.bi.conf.all <- recid.new %>%
+  group_by(age_factor) %>%
+  summarize(Avgtwo_year_recid = mean(two_year_recid),
+            upper = t.test(two_year_recid)$conf.int[1],
+            lower = t.test(two_year_recid)$conf.int[2])
+age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
+  geom_bar(stat = "identity") +
+  xlab("age") + 
+  ylab("Average Rate") +
+  ggtitle("Actual 2-year Recidivism") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))
+#Display the predictions versus actual recidivism rate averages
+grid.arrange(gender_factor.bi.all.dec, gender_factor.bi.all.recid, ncol = 2)
+grid.arrange(race_factor.bi.all.dec, race_factor.bi.all.recid, ncol = 2)
+grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
+```
+
+# **Section 2: Methodology and Models**
+
+
+**Splitting Data**
+Prior to starting the data mining process, we randomly split the data into training and validation sets. 
+
+Here we create a column `rand.split` where `train.dat` is a subset of the data whose rand.split value is 0 (70% of the recid.new dataset); `val.dat` is a subset of the data whose rand.split value is 2 (20% of the recid.new dataset); and `test.dat` is a subset of the data whose rand.split value is 1 (10% of the recid.new dataset). Using the `sample` function in r ensures this division is random, and we have set a seed at 12 so that the random division will give the same results when the code is re-run. We also create a dataset that combines training/validation data because certain r functions run cross-validation automatically. For those functions, we only want to exclude test data. 
+```{r, message = FALSE}
+#Set seed at 12 b/c we're group 12
+set.seed(12)
+
+#Use sample function w/ probabilities
+recid.new$rand.split <- sample(c(0,1,2), size = nrow(recid.new), replace=TRUE, prob = c(0.7, 0.1, 0.2))
+
+#Create binary flags that can be useful for following example code from textbook
+recid.new <- mutate(recid.new, 
+                    is.train = ifelse(rand.split == 0, 1, 0),
+                    is.val   = ifelse(rand.split == 2, 1, 0),
+                    is.test  = ifelse(rand.split == 1, 1, 0))
+
+#Show that creation is correct
+kable(recid.new %>%
+        summarize("% Training" = mean(is.train), "% Validation" = mean(is.val), "% Test" = mean(is.test), n = n()), caption = "Show splitting of dataset", digits = 2)
+
+#Create new datasets
+train.dat <- subset(recid.new, subset = (is.train == 1))
+val.dat <- subset(recid.new, subset = (is.val == 1))
+test.dat <- subset(recid.new, subset = (is.test == 1))
+trainval.dat <- subset(recid.new, subset = (is.train == 1 | is.val == 1))
+```
+
+An overview of datasets is below:   
+
+| Dataset         | Purpose                      | Rows                   |  
+|-----------------|------------------------------|------------------------| 
+| recid.all       | Full dataset - used above    |  `r nrow(train.dat)`    |    
+| recid.all       | Full dataset - used above    |  `r nrow(train.dat)`    |    
+| train.dat       | Training models              |  `r nrow(train.dat)`    |  
+| val.dat          | Validating models            |  `r nrow(val.dat)`       |  
+| test.dat        | New data for the final model |  `r nrow(test.dat)`     |  
+| trainval.dat    | Training & validation data |  `r nrow(test.dat)`     |  
+
+
+
+**Deciding which Variables to Use:**
+**PCA**    
+PCA attempted by Sormeh:
+
+- If we want to see if PCA will work well on this data, we look first to see if there are many correlated variables.
+- We use a pairs plot to see correlation:
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.4/strwidth(txt)
+    text(0.5, 0.5, txt, cex = pmax(1, cex.cor * r))
+}
+
+pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
+
+```
+- Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. 
+- `priors_count` and `length_of_stay` along with `length_of_stay` and `crime_factor` seem to have the high correlations relative to the others (0.11)
+- `age_factor` and `juv_other_count` have high correlations relative to the other pairs (0.14)
+- `priors_count` and `crime_factor` have high correlations relative to the other pairs (0.15)
+- `priors_count` and `age_factor` have high correlations relative to the other pairs (0.18)
+- `priors_count` and `juv_fel_count` have high correlations relative to the other pairs (0.19)
+- `juv_misd_count` and `juv_other_count` have high correlations relative to the other paris (0.26)
+- `priors_count` and `juv_misd_count` have high correlations relative to the other pairs (0.27)
+- Since none of these pairs are extremely correlated, the PCA method of determining which features capture the best variation in the data. 
+
+We might still want to attempt PCA
+- We first want to normalize the data in order to standaradize each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.
+- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way
+```{r}
+recid.new.sub <- recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
+recid.new.sub <- na.omit(recid.new.sub)
+recid.new.scaled <- scale(recid.new.sub) # This normalizes the data
+
+recid.pca <- princomp(recid.new.scaled) # Perform PCA
+recid.pca$loadings = -recid.pca$loadings
+recid.pca$scores = -recid.pca$scores
+
+
+biplot(recid.pca, scale = 0) # construct biplot
+## Add grid lines
+abline(v=0, lty=2, col="grey50")
+abline(h=0, lty=2, col="grey50")
+
+### THIS FANCY PLOT CODING THING I TRIED RIGHT HERE IS FROM 
+## benjaminbell.co.uk/2018/02/principal-components-analysis-pca-in-r.html
+## I tried, but it isn't working out exactly the way I wanted it to.
+## Might just delete this plot altogether, but left it so you could observe the labor of my work, because sadly it took me a decent amount of time
+## Create groups
+pch.group <- c(rep(21, times=16), rep(22, times=14), rep(24, times=3))
+col.group <- c(rep("skyblue2", times=16), rep("gold", times=14), rep("green2", times=3))
+
+## Plot individuals
+summary.recid.pca <- summary(recid.pca)
+p <- prcomp(recid.new.scaled)
+#p$x[,1:2]
+s <- summary(p)
+#recid.pca
+plot(p$x[,1], p$x[,2], xlab=paste("PCA 1 (", round(s$importance[2]*100, 1), "%)", sep =""), ylab=paste("PCA 2 (", round(s$importance[5]*100, 1), "%)", sep=""), pch=pch.group, col="black", bg=col.group, cex=2, las=1, asp=1)
+
+## Add grid lines
+abline(v=0, lty=2, col="grey50")
+abline(h=0, lty=2, col="grey50")
+
+## Add labels
+text(p$x[,1], p$x[,2], labels=row.names(p$x), pos=c(1,3,4,2), font=2)
+
+```
+
+We started with 6 dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each of the points is labeled in terms of the individual in the system that it corresponds to and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, and it also has a z1 value and z2 value, and that is how it's being plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. The vectors for each variable are aligned with positive component 1 values (except for `age`), meaning that the new component 1 axis reflects counts of misdemeanors and felonies, and length of stay in a prison/jail, which is related to those. The Component 2 axis therefore reflects age, showing that individuals with lower age are ones with higher recidivism rates after 2 years, and the older you are, the lower your recidivism rate after two years. 
+
+ When looking at this plot, we see that individuals plotted in the same direction/location as the vectors are the ones that are highly identified by the vector factors. For example, individual 5130 will have a high `juv_other_count` (second component variation), but will have a lower `length_of_stay` (first component variation) than individual 1526.  Furthermore, this process has now ensured that the 6 columns are uncorrelated with one another.
+ 
+The plot allows us to see that certainly `age` is highly uncorrelated with all the other variables, `juv_other_count` and `juv_misd_count` are more correlated with each other, while `juv_fel_count`, `length_of_stay` and `priors_log` can be considered another correlated group.
+
+Unfortunately because of the density of the data the plot is a bit more challenging to read, but we do find it useful to highlight correlations that were otherwise less obvious in the pairs plot.
+ 
+**Update needed: make this graph prettier, and explain it**
+**left here because unsure if this is preferred to the one above, the one without the colorful points**
+Initial PCA work showed the following relationship between numeric predictor variables.
+```{r}
+#PCA
+#This will require some analysis from someone who understands it??
+recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>%
+  as.data.frame() %>%
+  prcomp(scale = TRUE) %>%
+  biplot(scale = 0, cex = c(0.1, 1))
+
+```
+
+
+
+#### **2a: Data Mining Methods and Performance**
+
+**Possible models**  
+
+**Update needed: Will somebody make these explanations better?**   
+Given our task of predicting binary outcomes, this is fundamentally a classification methods. Informed by [our book - ISLR](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjx8tmdyafpAhVxg3IEHWqjDIsQFjAAegQIAhAB&url=https%3A%2F%2Ffaculty.marshall.usc.edu%2Fgareth-james%2FISL%2FISLR%2520Seventh%2520Printing.pdf&usg=AOvVaw3IIbJOiIiKLgG0eFhvQBp9), we decided to pursue the following methods:  
+   1) **Logistic regression**:  This classification method assesses the probability that a person belongs to a given category -- in this case recidivating in 2 years.    
+   2) **Linear Discriminant Analysis (LDA)**: Although LDA $must$ replace logistic regression in cases where the outcome has more than two classes, it is also a good idea to compare logistic results to LDA results. LDA is more stable than logistic regression when the classes are well-separated or the sample size is small. One constraint of the LDA is that the interactions between predictors is assumed to be the same across classes.
+   3) **Quadratic Discriminant Analysis (QDA)**: This is like LDA but more flexible. It works when there are class-based interactions among the predictors, so we will try this out in addition to LDA in case the model is superior.   
+   4)  **Classification Tree**: Using a decision tree to classify our respondents is helpful if the relationship between variables is non-linear. Some may also argue this better approximates human decision making. An additional benefit is that they can be interpreted graphically, which is important when creating a model for something that requires public transparency. However, thie disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split.
+   5) **Random Forest (RF)**: This model improves the stability of the classification tree by essentially creating a bunch of different trees with random variables available to them. If our data are best modeled by a tree, the random forrest will likely give a lower error rate than a single classificaiton tree.
+
+Note: We chose LDA over Naive Bayes because of expected interactions between our predictors.  
+
+### **Running models for any recidivism (including non-violent)  
+
+***2a.1: Logistic regression*** 
+
+**Variable Selection**
+The first step is to find out which of our potential variables are most predictive. We run this process with the `regsubsets` function using the exhaustive method. Because this is a logistic instead of a linear regression, we use AIC (or Mallow's CP) and BIC instead of R-squared. This work was run using the training dataset.  
+
+```{r}
+#Model that includes all of our potential variables:
+fullmodel <- any_recid_2yr ~ crime_factor +
+                            age +
+                            age_factor +
+                            race_factor +
+                            gender_factor +
+                            priors_log +
+                            priors_count +
+                            juv_fel_count +
+                            juv_fel_bi +
+                            juv_misd_count +
+                            juv_misd_bi +
+                            juv_other_count +
+                            juv_other_bi +
+                            length_of_stay
+#Choosing variables - use fullmodel as the input
+recid.subsets <- regsubsets(fullmodel,
                             data = train.dat,
                             nbest = 1,
                             nvmax = 15,
@@ -522,77 +616,109 @@ minbic <- which.min(summary(recid.subsets)$bic)
 points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
 ```
   
-  
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to AIC) variables. After examining the models in this range, we went with the following 7 variables (presented with coefficients):
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to Cp) variables. As the increase in adjusted Cp is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
+
 ```{r}
-kable(coef(recid.subsets, 7), format = "markdown")
+kable(coef(recid.subsets, 7), format = "markdown", digits = 3)
 ```
 
+***Model outcome***  
+Based on the findings above about which variables to include, we ran the logistic regression on our training dataset. Results are below. The histogram shows us the distribution of estimated probabilities of recidivism from our logistic regression. 
+```{r, echo = FALSE}
 
-**Sormeh Attempts Logistic Regression**
-
-First we run a logistic regression using recid.all on `two_year_recid`:
-ATTEMPT 2: Logistic Regression and Prediction: 
-Create a logistic regression model: 
-```{r, message = FALSE}
-# 5189.5
-glm.logit <- glm(two_year_recid ~
+#Copied manually from above
+glm.logit <- glm(any_recid_2yr ~
                    crime_factor +
                    age +
-                   age_factor +
+                   age_factor + #including the whole var, even though only the < 25 group was flagged above
                    gender_factor +
-                   log2(priors_count + 1) +
-                   (juv_other_count > 0) +
+                   priors_log +
+                   juv_other_bi +
                    length_of_stay,
                  data=train.dat,
                  family = binomial)
-summary(glm.logit)
-kable(coef(summary(glm.logit)), digits= 3)
+
+#summary(glm.logit)
+kable(coef(summary(glm.logit)), digits= 4)
+
+#Histogram of results
+qplot(train.pred.logit, geom="histogram")
 ```
 
-Use the model above to make a prediction for two_year_recid (using the cross-validation data)
-I tried this two different ways, but I'm not certain which one is the right way. One is from class, the other is from the r documentation page on the web.
-I think eventually we would compare the misclassification rate here with the test data if this is the one we decide on. Otherwise we compare it to the misclassification rate of the other models to pick the best model.
+We then evaluated our classifier by looking at how often the logistic model misclassified people. However, we also looked at both specificity and sensitivity, which can also be calculated via the confusion matrix and then represented via an ROC curve. An overview of why all of these measures are relevant is below:  
+   -**Accuracy**: This is the percent of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different. That said, it is the simplest measure. The accuracy rate is 1 - the misclassification rate.    
+    -**Specifity**: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is extremely important because it keeps innocent people from receiving harsh punishments.    
+   -**Sensitivity**: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.  
+
+``` {r}
+#Predicted values
+train.pred.logit <- predict(glm.logit, type = "response")
+
+#Confusion matrix
+confusion.glm = ifelse(train.pred.logit > 0.5, "1", "0")
+confusions.pred.train = table(confusion.glm, train.dat$any_recid_2yr)
+kable(confusions.pred.train, caption = "Logistic regression: confusion matrix using training data")
+
+kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2), caption = "Misclassification Rate (with train.dat):")
+```
+
+**Model Validation**
+The training error plotted above is likely an underestimate of the true error rate when this same model is applied to new data.
+
+The predict function is used on our glm logistic regression model to predict the probability that a person will recidivate two years after their initial arrest. The `type="response"` option tells R to output probabilities of the form P(Y=1 | X). The data given to validate the training model is `rand.split = 2` or `val.dat`, which is a subset of 20% the original dataset. 
+
 ```{r, message = FALSE}
-glm.logit.predict = predict(glm.logit, cv.dat, type="response")
-##what is the actual difference here????
-p2 <- predict(glm.logit, cv.dat, interval="prediction")
-paste("glm prediction with type response:")
-glm.logit.predict[1:10]
-paste("glm prediction with type prediction:")
-p2[1:10]
-confusion.glm = ifelse(glm.logit.predict > 0.5, "1", "0")
-confusions.pred = table(confusion.glm, cv.dat$two_year_recid)
-confusions.pred
-# Misclassification
-paste("Misclassification Rate (with cv.dat):")
-1- sum(diag(confusions.pred)) / sum(confusions.pred)
-qplot(glm.logit.predict, geom="histogram")
-## This does not work, sigh:
-#p <- ggplot(data = recid.all, aes(two_year_recid, fill = as.factor(glm.logit.predict$y))) +
-#  geom_histogram(binwidth = 1)
-#ggplotly(p)
+glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
+
+confusion.glm = ifelse(glm.logit.predict.val > 0.5, "1", "0")
+confusions.pred.val = table(confusion.glm, val.dat$any_recid_2yr)
+dimnames(confusions.pred.val)[[1]] = c("No","Yes")
+
+kable(confusions.pred.val, caption = "Logistic regression: confusion matrix using validation data")
+kable(round(1- sum(diag(confusions.pred.val)) / sum(confusions.pred.val), 2), caption = "Misclassification Rate (with val.dat):")
+
+paste("Accuracy:")
+logit.acc <- sum(diag(confusions.pred.val)) / sum(confusions.pred.val)
+logit.acc
+paste("Sensitivity Rate:")
+logit.sens <- sensitivity(confusions.pred.val)
+logit.sens
+paste("Specificity Rate:")
+logit.spec <- specificity(confusions.pred.val)
+logit.spec
+
+
+#Commenting out for now since don't have a good explanation for alpha -- but let's bring it back if we have time!
+## ROC plot
+# logit.val.roccurve <- roc(glm.logit$y, val.pred.logit)
+# plot(logit.train.roccurve)
+# plotROC(val.dat$any_recid_2yr, glm.logit.predict.val)
+
+#ROC explanation:
+# In the ROC plot we want the probability of True Positives found (Sensitivity) to be as high as possible, while the probability of False Positives (Specificity) to be as low as possible. A large distance from the 45 degree line shows that our predictor is doing better than a random coin flip.  
 ```
 
-The histogram shows us estimated probabilities from our logistic regression.
 
-***Linear Discriminant Analysis (LDA)***
-Running an LDA using the above variables, we achieve the following results:
-  
+***2a.2 Linear Discriminant Analysis (LDA)***  
+
+**Model Outcome**
+Running an LDA on our training data, we achieve the following results:
 ```{r}
-recid.lda <- lda(two_year_recid ~
+recid.lda <- lda(any_recid_2yr ~
+                   crime_factor +
                    age +
-                   age_factor +
+                   age_factor + #including the whole var, even though only the < 25 group was flagged above
                    gender_factor +
-                   length_of_stay +
-                   (juv_other_count > 0) +
-                   log2(priors_count + 1),
+                   priors_log +
+                   juv_other_bi +
+                   length_of_stay,
                  data = train.dat)
+
 #Results are currently for the training data
-recid.lda.pred <- predict(recid.lda,
+recid.lda.pred.train <- predict(recid.lda,
                           type = "response")
-lda.tab = table(predicted = recid.lda.pred$class,
-                actual = train.dat$two_year_recid)
+lda.tab = table(predicted = recid.lda.pred.train$class,
+                actual = train.dat$any_recid_2yr)
 lda.tab
 lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
 lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
@@ -601,19 +727,18 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.spec, accuracy = 0.1)),
       format = "markdown")
-#It would be great to have an ROC curve here, but for now I'm going to bed :)
 ```
-
-****Cross-Validation of LDA****
+  
+**Model Validation**  
+Just like for logistic regression, we then re-ran the model using our validation data. The results from this analysis are below.  
 ```{r}
-#Cross-Validation Time!!
-lda.cv.pred <- predict(object = recid.lda,
-                       newdata = cv.dat,
+#Validation Time!!
+lda.cv.pred.val <- predict(object = recid.lda,
+                       newdata = val.dat,
                        type = "response")
-lda.cv.tab = table(predicted = lda.cv.pred$class,
-                actual = cv.dat$two_year_recid)
+lda.cv.tab = table(predicted = lda.cv.pred.val$class,
+                   actual = val.dat$any_recid_2yr)
 lda.cv.tab
-
 lda.cv.acc <- (lda.cv.tab[1,1] + lda.cv.tab[2,2]) / sum(lda.cv.tab)
 lda.cv.sens <- lda.cv.tab[2,2] / sum(lda.cv.tab[,2])
 lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
@@ -621,20 +746,23 @@ tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.cv.spec, accuracy = 0.1))
 ```
-  
-***Quinear Discriminant Analysis (QDA)***  
-When testing models using QDA, we found that including `length_of_stay` and `(juv_other_count > 0)` actually made the model perform worse. Even after excluding them, QDA performed worse than LDA:
+
+***2a.3 Quadratic Discriminant Analysis (QDA)***  
+**Variable Selection and Model Outcomes**  
+We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes.  
 ```{r}
-recid.qda <- qda(two_year_recid ~
+recid.qda <- qda(any_recid_2yr ~
                    crime_factor +
                    age +
-                   (age_factor == "Less than 25") +
+                   age_factor + #including the whole var, even though only the < 25 group was flagged above
                    gender_factor +
-                   log2(priors_count + 1),
+                   priors_log +
+                   juv_other_bi +
+                   length_of_stay,
                  data = train.dat)
-recid.qda.pred <- predict(recid.qda,
+recid.qda.pred.train <- predict(recid.qda,
                           type = "response")
-qda.tab = table(predicted = recid.qda.pred$class,
+qda.tab = table(predicted = recid.qda.pred.train$class,
                 actual = train.dat$two_year_recid)
 qda.tab
 qda.acc <- (qda.tab[1,1] + qda.tab[2,2]) / sum(qda.tab)
@@ -646,15 +774,14 @@ kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
       format = "markdown")
 ```
 
-****Cross-Validation of QDA****
+**Validation of QDA**
 ```{r}
 qda.cv.pred <- predict(object = recid.qda,
-                       newdata = cv.dat,
+                       newdata = val.dat,
                        type = "response")
-qda.cv.tab = table(predicted = qda.cv.pred$class,
-                actual = cv.dat$two_year_recid)
+qda.cv.tab.val = table(predicted = qda.cv.pred.val$class,
+                actual = val.dat$two_year_recid)
 qda.cv.tab
-
 qda.cv.acc <- (qda.cv.tab[1,1] + qda.cv.tab[2,2]) / sum(qda.cv.tab)
 qda.cv.sens <- qda.cv.tab[2,2] / sum(qda.cv.tab[,2])
 qda.cv.spec <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
@@ -662,116 +789,241 @@ tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.cv.spec, accuracy = 0.1))
 ```
-  
 
-***Sormeh Attempts Random Forest because she's interested in varImpPlot()***
-These "Partial Dependence" plots seem to be showing us that if we were to look at how our prediction changes, on average, as we vary a single variable, holding all other factors fixed, the likelihood estimated that someone recidivates after two years of comitting a crime are as follows: **THERE IS SOMETHING WRONG WITH THESE PLOTS. THEY SEEM TO BE SHOWING THE EXACT OPPOSITE OF WHAT WE WOULD INTUITIVELY HAVE EXPECTED**
-These are approximate plots, they are not capturing any faithful interaction or capturing anything the model is actually doing. They do provide some intuition to what is going on. **OR AT LEAST THEY SHOULD BE**
-- If anyone is able to interpret these plots in the way they should be interpreted, or if anyone knows how to fix what I have done, PLEASE GO RIGHT AHEAD!
-```{r, message = FALSE}
-#set.seed(12)
-#recid.rf <- randomForest(two_year_recid ~ race + age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count + is_recid +
-#                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all, importance = TRUE, ntree = 250)
-## is_recid got wildl importance (~400 and then IncNodePUrity was at 1200, not sure what that means)
-#recid.all.train$two_year_recid <- as.character(recid.all.train$two_year_recid)
 
-#I think the code for recid.all.train got deleted at some point and it's causing errors - I put a little band-aid here
-recid.all.train <- train.dat
-recid.all.train$two_year_recid <- as.factor(recid.all.train$two_year_recid)
-#recid.rf <- randomForest(two_year_recid ~ race + age + sex + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
-#                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all.train, importance = TRUE)
-recid.rf <- randomForest(two_year_recid ~ race + age + juv_fel_count + juv_misd_count + juv_other_count + priors_count +
-                           crime_factor + age_factor + race_factor + gender_factor, data=recid.all.train, importance = TRUE)
-plot(recid.rf)
-varImpPlot(recid.rf)
-partialPlot(recid.rf, recid.all.train, priors_count)
-partialPlot(recid.rf, recid.all.train, age)
-partialPlot(recid.rf, recid.all.train, age_factor)
-partialPlot(recid.rf, recid.all.train, race)
-partialPlot(recid.rf, recid.all.train, gender_factor)
-partialPlot(recid.rf, recid.all.train, race_factor)
-partialPlot(recid.rf, recid.all.train, crime_factor)
-partialPlot(recid.rf, recid.all.train, juv_other_count)
-partialPlot(recid.rf, recid.all.train, juv_misd_count)
-partialPlot(recid.rf, recid.all.train, juv_fel_count)
-#partialPlot()
-imp.recid <- importance(recid.rf)
-imp.recid
-## For some reason this is not plotting everything out...
-#imp.recid <- importance(recid.rf)
-#impvar <- rownames(imp.recid)[order(imp.recid[, 1], decreasing=TRUE)]
-#op <- par(mfrow=c(2,3))
-#for (i in seq_along(impvar)){
-#  partialPlot(recid.rf, recid.all.train, impvar[i], xlab=impvar[i],
-#              main=paste("Partial Dependence on", impvar[i]),
-#              ylim=c(30,70))
-#}
-#par(op)
-#imp <- importance(ozone.rf)
-#impvar <- rownames(imp)[order(imp[, 1], decreasing=TRUE)]
-#op <- par(mfrow=c(2, 3))
-#for (i in seq_along(impvar)) {
-#    partialPlot(ozone.rf, airquality, impvar[i], xlab=impvar[i],
-#                main=paste("Partial Dependence on", impvar[i]),
-#                ylim=c(30, 70))
+***2a.4 Classification Tree***  
+
+**Variable Selection**  
+The classification process will automatically choose which variables to use. Therefore, we will feed it the full model with all possible input variables. Acknowledgement: this analysis relies heavily on lab 8 from [ISLR](http://faculty.marshall.usc.edu/gareth-james/ISL/code.html). That said, the textbook was focusing on regression trees, where as we are working on classification trees.
+
+```{r}
+#Run original tree
+tree.recid <- tree(formula = fullmodel, data = train.dat)
+#Create summary object
+summary.tree.recid <- summary(tree.recid)
 ```
+
+Using the training dataset (with `r nrow(train.dat)` rows), we find the that there is a misclassification rate of `r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)`. The initial tree predicting whether a person will recidivate within two years is shown below.  
+
+```{r}
+kable(summary.tree.recid$used, caption = "Variables used in first tree")
+plot(tree.recid)
+text(tree.recid, pretty=0)
+```
+
+However, this is only the first step in the process. We must next re-run the code using our validation data with (with `r nrow(val.dat)` rows.
+
+```{r}
+tree.pred=predict(tree.recid, val.dat, type="class")
+table(tree.pred,val.dat$any_recid_2yr)
+
+tree.pred.errors = table(tree.pred,val.dat$any_recid_2yr)[2,1] + table(tree.pred,val.dat$any_recid_2yr)[1,2]
+```
+
+Based on the confusion matrix produced above with validation data, we see `r tree.pred.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.errors/nrow(val.dat), 2)`. 
+
+Next we see if there are any improvements that can be made by pruning it using cross-validation (with the function `cv.tree`). This process will help us avoid over-fitting.
+
+```{r}
+#Create CV version of the model, pruning by misclassification rate.
+cv.recid=cv.tree(tree.recid, FUN=prune.misclass)
+
+#plot the error rate as a function of both size and k.
+par(mfrow=c(1,2))
+plot(cv.recid$size,cv.recid$dev,type="b")
+plot(cv.recid$k,cv.recid$dev,type="b")
+
+cv.recid.df <- data.frame(cv.recid$size, cv.recid$dev)
+
+#Figure out smallest deviance
+cv.recid.min.dev <- min(cv.recid.df$cv.recid.dev)
+
+#Select the best model based on this deviance
+cv.recid.best <- min(cv.recid.df$cv.recid.size[cv.recid.df$cv.recid.dev== cv.recid.min.dev])
+
+#Create the pruned version - based on figuring out the best size above. Note that the book did this manually but we are automating so that we can re-use this code for both all and violent recidivism.
+prune.recid=prune.misclass(tree.recid,best=cv.recid.best)
+plot(prune.recid)
+text(prune.recid,pretty=0)
+
+#Again, predict and use the validation data
+tree.pred.prune=predict(prune.recid, val.dat, type="class")
+table(tree.pred.prune,val.dat$any_recid_2yr)
+
+tree.pred.prune.errors = table(tree.pred.prune,val.dat$any_recid_2yr)[2,1] + table(tree.pred.prune,val.dat$any_recid_2yr)[1,2]
+```
+
+This final confusion matrix produced after pruning shows `r tree.pred.prune.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.prune.errors/nrow(val.dat), 2)`.  
+
+***2a.5 Random Forest***  
+
+Building on the classification tree work above, we now assess the data using random forrests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
+
+Since our book focused on random forrests for regression trees instead of classification trees, we taught ourselves how to run this for classifications.
+
+It is worth noting, that based on the randomForest author's [documentation](https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr), cross-validation is not needed, since it is run automatically. Therefore, we are combining our training and validation data and using trainval.dat.
+
+```  {r}
+recid.rf =randomForest(formula = fullmodel,
+                       data    = trainval.dat,
+                       mtry    = 4 #this shouild be sqrt(p) since we're doing classification. In our case, p = 14.
+                       ,importance=TRUE #keeping this from book
+                       )
+``` 
+
+The confusion matrix for our random forrest created using training data is below:
+```{r}
+recid.rf$confusion
+rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(trainval.dat)
+```
+
+This matrix shows that the overall error rate for this random forest is `r round(rf.error, 2)`.
+
+To increase transparency, the plot below shows the importance of each variable in the random forest mode. Looking at the plot on the right, a small gini coefficient indicates that nodes are more pure. We see that age decreases the gini coefficient the most, followed by length of stay, priors count, and the log of priors count.  The least meaningful variables are the juvenile recods. Race is our 5th-most important predictor here. Notably, we have left this variable in because evidence shows that models that exclude race as a variable are not necessarily less racist. We will assess discrimination later int his report. [**update needed: this will need to be changed when we assess violent recidivism**] 
+
+```{r}
+varImpPlot(recid.rf, main="Variable Importance by Factor")
+```
+
 We then decided to pursue [which models should we use?]
-```{r, message = FALSE}
-#Run these models on training data
-#Run cross-validation on these models
-#Select the best version of each model based on a low CV
-  #Update after meeting: could we actually decide based on high specificity/sensitivity, or is that not legit?
-#Output line graphs showing how training and CV error levels work (I think this is a crucial part of the prompt)
-#Update after meeting: perhaps first run w/o including race, but then in the discussion section, re-run the final models including race and see if they become less racist?
-```
-To decide between models, we looked at three measures of error:
-   -Accuracy: This is the percent of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different.  
-    -Specifity: This shows the true negative rate. A higher number shows that we are not mistakenly classifying people as high-risk.  general, we believe this is the most important measure because it keeps innocent people from receiving harsh punishments.  
-   -Sensitivity: This shows the true positive rate. A higher number shows that we successfully predicted people would commit crimes. For violent crime, a high sensitivity rate is important.  
+
+### **Running models for only violent recidivism**    
+**Update needed: copy and paste everything here that we did for full recidivism (any_recid_2yr) except with violent recidivism (vio_recid_2yr) - starting with logistic regression**
+
+#### **2b Model Decisions**  
+
   
-**Statistics for the best version of each data mining method**    
-[fill this in once we've run the models -- this is just a template]  
+**Summary Statistics for the best version of each data mining method**    
+**Update needed: fill in this whole thing and perhaps round or format better. Then add a discussion of it.** 
+
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
-| Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |``r lda.cv.acc``|``r lda.cv.sens`` |``r lda.cv.spec``|  
-| Quadratic Discriminant Analysis (QDA)      |``r qda.cv.acc``|``r qda.cv.sens`` |``r qda.cv.spec``|  
+| Logistic regression                        |`r logit.acc`   | `r logit.sens`   |`r logit.spec` |  
+| Linear Discriminant Analysis (LDA)         |`r lda.cv.acc`  | `r lda.cv.sens`  |`r lda.cv.spec`|  
+| Quadratic Discriminant Analysis (QDA)      |`r qda.cv.acc`  | `r qda.cv.sens`  |`r qda.cv.spec`|  
+| Decision Tree                              |                |                  |             |  
 | Random Forest (RF)                         |                |                  |             |  
-|--------------------------------------------|----------------|------------------|-------------|  
+
 | Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
 | Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         |                |                  |             |  
-| Quadratic Discriminant Analysis (QDA)      |                |                  |             |  
+| Linear Discriminant Analysis (LDA)         | |  ||  
+| Quadratic Discriminant Analysis (QDA)      | |  ||  
+| Decision Tree                              |                |                  |             |  
 | Random Forest (RF)                         |                |                  |             |  
-[Let's add some graphs here that show tradoffs between different measures that we care about (like sensitivity vs. specificity. Caulkins would be proud)]
-**2c: Demographic analysis of the best version of each model:**  
+
+#### **2c: Demographic analysis of the best version of each model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
-[If possible, maybe create some charts comparing models on accuracy vs. prejudice tradeoffs]
-**2c1: Race**  
-**2c2: Gender**  
-**2c3: Age**  
-#### **2b: Final model(s)**
-Our final model is....
-This has an accuracy rate of [], specifity of []. We chose it because...
+**update needed: create this whole section after finishing EVERYTHING ELSE**
+
+***2c1: Race***     
+***2c2: Gender***  
+***2c3: Age***  
+
+#### **2d: Final model(s)**
+Our final model for all recidivism is....
+This has an accuracy rate of [], specifity of []. We chose it because... Then we ran it with our test data (10% of the original dataset randomly selected before any of data mining began) and found....
+
+Our final model for violent recidivism is...
 ```{r, message = FALSE}
 #Add pretty figures about our final model(s)
 ```
-# **Section 3: Key Findings and Takeaways**
+
+# **Section 3: Key Findings and Takeaways**  
 #### **3a: Comparing our tool to the COMPAS tool** 
 **3a.1: Does our RAIs perform better or worse than COMPAS?**      
 **3a.2: Do our RAIs produce similar classifications to COMPAS?**   
 **3a.3: Are there systematic differences between our classifications and those of COMPAS?**   
 #### **3b: Reflections on risk assessment tools**   
-- We know that arrest data is biased based on where police patrol, so even a model that's interally sound is still based on biased data.[maybe cite Patrick Ball]
+**update needed: create this whole section after finishing EVERYTHING ELSE**
+- We know that arrest data is biased based on where police patrol, so even a model that's interally sound is still based on biased data.[maybe cite Patrick Ball]  
 - Pittsburgh has a pre-trial risk assessment tool
 - Models can be racist without using race as an input...[maybe add more about our research]
 - Black box vs. accessibility  
 Perhaps cite some articles here, like the two that ProPublica cited, or something more recent
 [Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
 [Article on Risk, Race, and Recidivism](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
-# **References**  
-[ProPublica main article](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
-[ProPublica methodology](https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
-[ProPublica github](https://github.com/propublica/compas-analysis)   
-[Raw version of COMPAS survey](https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)
+
+### **References and Other Links**  
+[Our github repo](https://github.com/kaylareiman1/RecidivismPrediction)  
+[ProPublica main article]( https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
+[ProPublica methodology]( https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
+[ProPublica github]( https://github.com/propublica/compas-analysis)  
+[Raw version of COMPAS survey]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)  
+[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
+[Article on Risk, Race, and Recidivism]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339) 
+[Original publication by COMPAS creator]( http://www.northpointeinc.com/files/publications/Criminal-Justice-Behavior-COMPAS.pdf)  
+[Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)  
+[Project description on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4443203)  
+
+### **Appendix: Data Cleaning**
+
+In order to establish racial bias in how COMPAS scores predicted future recidivism, ProPublica analysts ran the model below:  
+`glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
+
+The approximate definitions of the ProPublica variables are below:  
+   - two_year_recid: this is the variable that ProPublica used to indicate recidivism in each dataset.   
+   - score_factor: the binary variable indicating low risk vs. medium/high risk.  
+   - Other covariates:   
+      + gender_factor: male vs. female  
+      + age_factor: a 3-level categorical variable for age  
+      + race_factor: from the original race variable. As will be shown below, most categories have very few observations.  
+      + crime_factor: felonies vs. misdimeanors  
+      + priors_count: prior infractions  
+      
+However, their published datasets included many more variables than were included in the model, as shown below. The variables prefaced with r_ indicate recidivism data and vr_ indicate violent recidivism data. They cannot be part of our models because they would be unknown at the time of risk assessment. Other variables relate to screening and are also unhelpful. That said, ProPublica dropped the juvenile variables from their glm model, and we are not dropping those variables from our predictions. All original columns in the ProPublica dataset (compas-scores-two-years.csv) are below.
+
+```{r, warning = FALSE, message = FALSE, echo = TRUE}
+colnames.all <- colnames(recid.all)
+colnames.vio <- colnames(recid.vio)
+#Print full list of columns in ProPublica's dataset (listed on their github as compas-scores-two-years)
+colnames.all
+#Print columns that differ
+colnames.vio[(colnames.vio != colnames.all)]
+colnames.all[(colnames.vio != colnames.all)]
+```
+
+The tables below show the checks that were run to determine that ProPublica's "violent recidivsm" dataset was a subset of the "all recidivism" dataset. Additionally, these checks helped us learn that we should use the two-year recidivism varible instead of the is_recid variable. 
+
+```{r, message = FALSE, echo = FALSE}
+#Check how the recidivism variables relate
+kable(recid.all %>%
+  group_by (two_year_recid, is_recid, is_violent_recid, violent_recid) %>%
+  summarize(count = n()), caption = "How variables relate in recid.all dataset")
+kable(recid.vio %>%
+  group_by (two_year_recid, two_year_recid.1, is_recid, is_violent_recid, violent_recid) %>%
+  summarize(count = n()), caption = "How variables relate in recid.vio dataset")
+```
+
+
+After substantial discussion, we decided to use the full dataset for all analyses and create new outcome variables that showed whether the new offense was violent or not. This way, we are not dropping the people who re-offended non-violently. The table below shows factor variables that we created for our analyses, including the two outcomes variables (`any_recid_2yr` and `vio_recid_2yr`) during the data cleaning stage. We also created Y/N variables for juvenile inputs. 
+
+**New Variables**  
+```{r, message = FALSE}
+kable(recid.new%>%
+  count(any_recid_2yr, two_year_recid), caption = "Outcome variable 1: any recidivism within 2 years")
+kable(recid.new%>%
+  count(vio_recid_2yr, two_year_recid, is_violent_recid), caption = "Outcome variable 2: violent recidivism within 2 years")
+kable(recid.new%>%
+  count(juv_fel_bi, juv_fel_count), caption = "Yes/No version of Juvenile Felonies")
+kable(recid.new%>%
+  count(juv_misd_bi, juv_misd_count), caption = "Yes/No version of Juvenile Misd.")
+kable(recid.new%>%
+  count(juv_misd_bi, juv_misd_count), caption = "Yes/No version of Juvenile Other Events")
+```
+
+The table below shows variables that we dropped because they were redundant: 
+
+**Redundant Variables**  
+```{r}
+kable(recid.all %>%
+        count(sex, gender_factor))
+kable(recid.all %>%
+        count(age_factor, age_cat))
+kable(recid.all %>%
+        count(priors_count, priors_count.1))
+kable(recid.all %>%
+        count(crime_factor, c_charge_degree))
+kable(recid.all %>%
+        count(race_factor, race))
+```
