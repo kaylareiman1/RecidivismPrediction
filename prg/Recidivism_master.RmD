@@ -526,7 +526,7 @@ Given our task of predicting binary outcomes, this is fundamentally a classifica
    1) **Logistic regression**:  This classification method assesses the probability that a person belongs to a given category -- in this case recidivating in 2 years.    
    2) **Linear Discriminant Analysis (LDA)**: Although LDA $must$ replace logistic regression in cases where the outcome has more than two classes, it is also a good idea to compare logistic results to LDA results. LDA is more stable than logistic regression when the classes are well-separated or the sample size is small. One constraint of the LDA is that the interactions between predictors is assumed to be the same across classes.
    3) **Quadratic Discriminant Analysis (QDA)**: This is like LDA but more flexible. It works when there are class-based interactions among the predictors, so we will try this out in addition to LDA in case this is the case.   
-   4)  **Classification Tree**: Using a decision tree to classify our respondents is helpful if the relationship between variables is non-linear. Additionally, classification trees can be interpreted graphically, a major advantage in a model that requires public transparency. Trees can approximate human decision-making processes, which makes their interpretation more intuitive to the general public.  However, the disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split.
+   4)  **Classification Tree**: Using a decision tree to classify our respondents is helpful if the relationship between variables is non-linear. Additionally, classification trees can be interpreted graphically, a major advantage in a model that requires public transparency. Trees can approximate human decision-making processes, which makes their interpretation more intuitive to the general public.  However, the disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split.  
    5) **Random Forest (RF)**: This model improves the stability of the classification tree by essentially creating a bunch of different trees with random variables available to them. If our data are well-modeled by a tree, the random forest will give a lower error rate than a single classification tree. However, random forests lack the easy interpretability of individual classification trees.
 
 <span style ="color: red;"> I think we need to remove this line -- our predictors are not strongly correlated, so this doesn't hold water. Do we need to justify not attempting every model in existence? -M</span>Note: We chose LDA over Naive Bayes because of expected interactions between our predictors.  
@@ -570,7 +570,7 @@ minbic <- which.min(summary(recid.subsets)$bic)
 points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
 ```
   
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to Cp) variables. As the increase in adjusted Cp is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to Cp) variables. As the decrease in adjusted Cp is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
 
 ```{r}
 kable(coef(recid.subsets, 7), format = "markdown", digits = 3)
@@ -589,7 +589,7 @@ glm.logit <- glm(any_recid_2yr ~
                    age_factor + #including the whole var, even though only the < 25 group was flagged above
                    gender_factor +
                    priors_log +
-                   (juv_other_count > 0) +
+                   juv_other_bi +
                    length_of_stay,
                  data=train.dat,
                  family = binomial)
@@ -631,7 +631,11 @@ Training error (plotted above) tends to underestimate the true error rate when t
 
 We used the predict function on our glm logistic regression model to estimate the probability that a person will recidivate two years after their initial arrest. The `type="response"` option tells R to output probabilities of the form P(Y=1 | X). The data given to validate the training model is `rand.split = 2` or `val.dat`, which is a subset of 20% the original dataset. 
 
-The following model is tested with a 50% threshold, meaning that the model will identify an individual as will recidivate in two years (1) if they have a 50% or higher percentage likelihood of recidivating:
+```{r, message = FALSE}
+logit.threshold <- 0.5
+```
+
+The following model is tested with a ``r scales::percent(logit.threshold)`` threshold, meaning that the model will identify an individual as will recidivate in two years (1) if they have a ``r scales::percent(logit.threshold)`` or higher percentage likelihood of recidivating:  
 
 ```{r, message = FALSE}
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
@@ -653,6 +657,8 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
              Sensitivity = scales::percent(logit.sens, accuracy = 0.1),
              Specificity = scales::percent(logit.spec, accuracy = 0.1)),
       format = "markdown")  
+
+
 ```
 
 
@@ -806,10 +812,34 @@ tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
 The classification process will automatically choose which variables to use. Therefore, we will feed it the full model with all possible input variables. Acknowledgement: this analysis relies heavily on lab 8 from [ISLR](http://faculty.marshall.usc.edu/gareth-james/ISL/code.html). That said, the textbook was focusing on regression trees, where as we are working on classification trees.
 
 ```{r}
-#Run original tree
-tree.recid <- tree(formula = fullmodel, data = train.dat)
+#Run original CLASSIFICATION tree
+tree.recid <- tree(formula = update(fullmodel, ~ . - priors_log), data = train.dat)
 #Create summary object
 summary.tree.recid <- summary(tree.recid)
+```
+
+**<span style ="color: red;">We probably don't need this regression tree, but here it is in case we want it!</span>**
+```{r}
+#Run REGRESSION tree
+reg.tree.recid <- tree(formula = (as.numeric(any_recid_2yr) - 1) ~
+                         crime_factor +
+                         age +
+                         age_factor +
+                         race_factor +
+                         gender_factor +
+                         #priors_log +
+                         priors_count +
+                         juv_fel_count +
+                         juv_misd_count +
+                         juv_other_count +
+                         length_of_stay,
+                       data = train.dat)
+summary.reg.tree.recid <- summary(reg.tree.recid)
+
+#INSERT TEXT HERE
+plot(reg.tree.recid)
+text(reg.tree.recid, pretty = 0)
+
 ```
 
 Using the training dataset (with `r nrow(train.dat)` rows), we find the that there is a misclassification rate of `r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)`. The initial tree predicting whether a person will recidivate within two years is shown below.  
@@ -850,15 +880,32 @@ plot(prune.recid)
 text(prune.recid,pretty=0)
 #Again, predict and use the validation data
 tree.pred.prune=predict(prune.recid, val.dat, type="class")
-table(tree.pred.prune,val.dat$any_recid_2yr)
-tree.pred.prune.errors = table(tree.pred.prune,val.dat$any_recid_2yr)[2,1] + table(tree.pred.prune,val.dat$any_recid_2yr)[1,2]
+confusions.tree <- table(tree.pred.prune,val.dat$any_recid_2yr)
+confusions.tree
+tree.pred.prune.errors = confusions.tree[2,1] + confusions.tree[1,2]
 ```
 
-This final confusion matrix produced after pruning shows `r tree.pred.prune.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.prune.errors/nrow(val.dat), 2)`.  
+This final confusion matrix produced after pruning shows `r tree.pred.prune.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.prune.errors/nrow(val.dat), 2)`.
+
+```{r}
+#paste("Accuracy:")
+tree.acc <- sum(diag(confusions.tree)) / sum(confusions.tree)
+#logit.acc
+#paste("Sensitivity Rate:")
+tree.sens <- sensitivity(confusions.tree)
+#logit.sens
+#paste("Specificity Rate:")
+tree.spec <- specificity(confusions.tree)
+#logit.spec
+kable(tibble(Accuracy = scales::percent(tree.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(tree.acc, accuracy = 0.1),
+             Specificity = scales::percent(tree.acc, accuracy = 0.1)),
+      format = "markdown")
+```
 
 ***2a.5 Random Forest***  
 
-Building on the classification tree work above, we now assess the data using random forrests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
+Building on the classification tree work above, we now assess the data using random forests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
 
 Since our book focused on random forrests for regression trees instead of classification trees, we taught ourselves how to run this for classifications.
 
