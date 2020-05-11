@@ -227,11 +227,8 @@ recid.new <- mutate(recid.all,
 #add numeric var for violent recidivism to use in regression tree
 recid.new$num.recidvio <- (as.numeric(recid.new$vio_recid_2yr) - 1) #different from is_violent_recid
 recid.new$num.recidany <- (as.numeric(recid.new$any_recid_2yr) - 1) #same as two_year_recid
-
 recid.new$compas.low <- (as.numeric(recid.new$score_factor)) #different from is_violent_recid
 recid.new$v.compas.low <- (as.numeric(recid.new$v_score_factor)) #same as two_year_recid
-
-
 #Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic variables are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
 recid.new <- dplyr::select(recid.new, #dataset 
                           id, #Personal ID
@@ -328,7 +325,6 @@ grid.arrange(ranking.all, ranking.vio, ncol = 2)
 **Overall summary of COMPAS predictions**
 The confusion matrices below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
 ```{r, warning = FALSE, message = FALSE}
-
 #Create table
 confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
 dimnames(confusions.compas.any)[[1]] = c("No (Predicted)","Yes (Predicted)")
@@ -340,8 +336,6 @@ kable(confusions.compas.any, caption = "Confusion matrix for the COMPAS: any rec
 #              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
 #              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
 #       format = "markdown", caption = "Success of the COMPAS instrument")  
-
-
 #Same for violent recidivism
 confusions.compas.vio = table(predicted = recid.new$v_score_factor, actual = recid.new$vio_recid_2yr)
 dimnames(confusions.compas.vio)[[1]] = c("No (Predicted)","Yes (Predicted)")
@@ -353,7 +347,6 @@ kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: violent
 #              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
 #              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
 #       format = "markdown", caption = "Success of the COMPAS instrument")  
-
 ```
 
 **Demographic summary of COMPAS predictions**
@@ -857,6 +850,7 @@ plot(roc_lda,
 
 The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value greater than 0.5 meaning that the LDA model is reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%. The optimal LDA model has a specificity of 79.5%, which is higher than that of the optimal logistic model, despite similar AUCs. Therefore, we are inclined to recommend LDA over logistic regression. 
 
+
 ***2a.3 Quadratic Discriminant Analysis (QDA)***  
 **Variable Selection and Model Outcomes**  
 We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes.  
@@ -882,8 +876,7 @@ qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
 qda.spec <- qda.tab[1,1] / sum(qda.tab[,1])
 kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.sens, accuracy = 0.1),
-             Specificity = scales::percent(qda.spec, accuracy = 0.1)),
-      format = "markdown")
+             Specificity = scales::percent(qda.spec, accuracy = 0.1)))
 ```
 
 **Validation of QDA**
@@ -902,9 +895,10 @@ kable(tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.cv.spec, accuracy = 0.1)))
 
-````
+##TESTING DIFFERENT THRESHOLDS (DELETE IF UNUSED)
+#qda.cv.tab <- table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.218),
+#                    actual = val.dat$two_year_recid)
 
-```{r}
 ## Drop that ROC like it's hot
 roc_qda <- roc(response = val.dat$any_recid_2yr,
                predictor = qda.cv.pred$posterior[,"Yes"],
@@ -919,7 +913,9 @@ plot(roc_qda,
      print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 #auc(roc_qda)
 ```
-The QDA model is less accurate (as measured by AUC).  
+The optimal QDA model is less accurate than our previous models, correctly categorizing only 62.6% of individuals
+
+
 
 ***2a.4 Classification And Regression Tree***  
 
