@@ -869,28 +869,32 @@ plot(roc_qda,
 
 The QDA model is less accurate (as measured by AUC)
 
-
 ***2a.4 Classification And Regression Tree***  
 
-**Variable Selection**  
-The recursive prediction methods used in trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables. The one exception is that since our goal using trees is to make the output accessible to stakeholders, we are avoiding using the log of priors variable. 
+**Classification tree: Variable Selection**  
+The recursive prediction methods used in trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables. The one exception is that since our goal using trees is to make the output accessible to stakeholders, we are avoiding using the log of priors variable.  
 
 **Model: Classification Treee**
-Here, we are trying both classification trees (since this is a classification problem) and regression trees, in which we treat the recidivism outcome variable as a numeric 0/1 response. We find that the use of regression trees helps us create ROC curves and better understand the data.
+Here, we are trying both classification trees (since this is a classification problem) and regression trees, in which we treat the recidivism outcome variable as a numeric 0/1 response. We find that the use of regression trees helps us create ROC curves and better understand the data. 
 
-
-
-```{r, out.width="50%"}
+```{r}
 #Run original CLASSIFICATION tree
 tree.recid <- tree(formula = update(fullmodel, ~ . - priors_log), data = train.dat)
 #Create summary object
 summary.tree.recid <- summary(tree.recid)
+```
+
+
+Using the training dataset (with ``r nrow(train.dat)`` rows), we find the that there is a misclassification rate of ``r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)``. The initial tree predicting whether a person will recidivate within two years is shown below.  
+
+```{r}
+kable(summary.tree.recid$used, caption = "Variables used in first tree")
 plot(tree.recid)
 text(tree.recid, pretty=0)
 ```
 
 **Validation: Classification tree**  
-However, this is only the first step in the process. We must next re-run the model using our validation data with (with ``r nrow(val.dat)`` rows) to find a confusion matrix.
+However, this is only the first step in the process. We must next re-run the code using our validation data with (with ``r nrow(val.dat)`` rows).
 
 ```{r}
 tree.pred=predict(tree.recid, val.dat, type="class")
@@ -898,7 +902,7 @@ tree.pred.tab <- table(predicted = tree.pred, actual = val.dat$any_recid_2yr)
 dimnames(tree.pred.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 tree.pred.tab
 tree.pred.errors = table(tree.pred,val.dat$any_recid_2yr)[2,1] +
-table(tree.pred,val.dat$any_recid_2yr)[1,2]
+  table(tree.pred,val.dat$any_recid_2yr)[1,2]
 ```
 
 Based on the confusion matrix produced above with validation data, we see ``r tree.pred.errors`` errors out of ``r nrow(val.dat)`` observations, for a test error rate of ``r round(tree.pred.errors/nrow(val.dat), 2)``. 
@@ -955,11 +959,13 @@ kable(tibble(Accuracy = scales::percent(tree.acc, accuracy = 0.1),
       format = "markdown")
 ```
 
-**Model: Regression tree**  
-The following figures demonstrate modeling with regression trees. Although the data is not continuous, the factor variable is binary and therefore can be approached numerically. As we learned in class, a model can fail to meet certain assumptions while still providing a high levle of prediction value in classification. So while we do not expect a perfect model from the regression trees, there is still value to its results. In addition, the regression tree allows us to look at tradeoffs in sensitivity and specificity via an ROC curve - which was not possible with a classification tree. The simplistic-looking output is below. This helps us easily compare it to a classification tree.
+**Model: Regression trees**  
+The following figures demonstrate modeling with regression trees. Although the data is not continuous, the factor variable is binary and therefore can be approached numerically. As we learned in class, a model can fail to meet certain assumptions while still providing a high levle of prediction value in classification. So while we do not expect a perfect model from the regression trees, there is still value to its results. In addition, the regression tree allows us to look at tradeoffs in sensitivity and specificity via an ROC curve - which was not possible with a classification tree. 
 
+ 
+Simple regression tree output using the `tree` function is below. 
 ```{r}
-### TREE FUNCTION -- same results with more simplistic looking output###
+#Run REGRESSION tree
 reg.tree.recid <- tree(formula = num.recidany ~
                          crime_factor +
                          age +
@@ -976,6 +982,16 @@ reg.tree.recid <- tree(formula = num.recidany ~
 summary.reg.tree.recid <- summary(reg.tree.recid)
 plot(reg.tree.recid)
 text(reg.tree.recid, pretty = 0)
+```
+
+We also tried the regression tree using the `rpart` function, which allowed for a prettier picture. 
+```{r}
+#Create model using rpart function and training dataset
+tree.recid.rpart.train <- rpart(formula = update(fullmodel, ~ . - priors_log),
+                                data = train.dat)
+#Output pretty picture
+tree.recid.rpart.train.pretty <- as.party(tree.recid.rpart.train)
+plot(tree.recid.rpart.train.pretty, pretty = 1)
 ```
 
 Now we run `cv.tree` to prune the regression tree. However, we find that the smallest deviance is for the largest tree, so no pruning is needed.
@@ -1000,58 +1016,43 @@ cv.recid.reg
 # prune.recid.reg <- predict(prune.recid, val.dat, type="class")
 ```
 
-The regression tree is now shown below using the `as.party` command to increase interpretability.
+**Validation**
+With our regression tree, we are now able to look at ROC curves for different cut points.
 ```{r}
-#Output pretty picture - must first run using rpart -- a recursive partitioning function that outputs an object that have pretty formatting.
-rpart.recid.reg <- rpart(formula = num.recidany ~
-                         crime_factor +
-                         age +
-                         age_factor +
-                         race_factor +
-                         gender_factor +
-                         #priors_log +
-                         priors_count +
-                         juv_fel_count +
-                         juv_misd_count +
-                         juv_other_count +
-                         length_of_stay,
-                       data = train.dat)
-reg.tree.recid.pretty <- as.party(rpart.recid.reg)
-plot(reg.tree.recid.pretty, pretty = 1)
-```
-
-**Validation: regression tree**  
-```{r}
-#Predict and use the validation data
-reg.tree.recid.val   <- predict(reg.tree.recid, val.dat)
+tree.pred.rpart.val   <- predict(tree.recid.rpart.train, val.dat)
 #Create ROC curve
 roccurve.trpart<- roc(response = val.dat$two_year_recid,
-                      predictor = reg.tree.recid.val[,2],
+                      predictor = tree.pred.rpart.val[,2],
                       levels = c(0, 1),
-                      direction = "<")
+                      direction = "<",
+                      percent = TRUE)
 #plot.roc(roccurve.trpart, print.auc = TRUE, print.thres = TRUE)
 plot(roccurve.trpart,
-     col="darkblue",
+     col= roccurve.trpart.col,
      lwd = 3,
      asp = 0,
      main="Tree - ROC Chart",
      print.auc = TRUE,
-     print.thres = "local maximas")
+     print.thres = "local maximas",
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 tree.vals <- coords(roccurve.trpart, "best", ret=c("threshold", "specificity", "sensitivity"))
 #tree.vals$threshold
 #tree.vals$specificity
 #tree.vals$sensitivity
 ```
 
-From the ROC chart we do see that the AUC value is lower for the regression tree than for the logistic regression or LDA models. The regression tree allows for more nuance than the classification tree. In addition to having more branches, it also has numeric rankings of likelihood of recidivism, rather than just saying that all people under the age of 23 will recidivate. 
-<span style ="color: red;">**KR note: tried to add the requested nuance here. Somebody please proofread**</span> 
+From the ROC chart we do see that the AUC value is lower for the regression tree than for the logistic regression or LDA models. The regression tree allows for more nuance than the classification tree, with six threshold options (including all-or-nothing options).  
+For instance, a threshold of 0.62 results in a tree that expects individuals to recidivate if and only if:  
+* They have at least 3 priors and are under 32 years old  
+* They have at least 7 priors and are at least 32 years old  
+Using those criteria, only 41.6% of recidivators would be correctly identified, but 85.4% of non-recidivators would be correctly identified as low threats.  
 
 
 ***2a.5 Random Forest***  
 
 Building on the classification tree work above, we now assess the data using random forests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
 
-For the purposes of this project, we focused on classification tress. The ISLR book and Data Mining lectures focused on random forest models for regression trees, which while helpful for understanding concepts, was not sufficient for the purposes of this project. 
+For the purposes of this project, we focused on classification trees. The ISLR book and Data Mining lectures focused on random forest models for regression trees, which while helpful for understanding concepts, was not sufficient for the purposes of this project. 
 
 It is worth noting, that based on the randomForest author's [documentation](https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr), cross-validation is not needed, since it is run automatically. Therefore, we are combining our training and validation data and using `trainval.dat`.
 <span style ="color: red;">**I trust that this is the way to do this, but I would just like someone to explain to me (not in the doc) why we are merging the data sets. Thank you! This message can be deleted once read. - SY**</span> 
@@ -1064,7 +1065,7 @@ recid.rf =randomForest(formula = fullmodel,
                        )
 ``` 
 
-The confusion matrix for our random forrest created using training data is below:
+The confusion matrix for our random forest created using training data is below:
 ```{r}
 recid.rf$confusion
 rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(trainval.dat)
@@ -1088,8 +1089,15 @@ recid.rf =randomForest(formula = fullmodel,
                        )
 rf.predict <- as.data.frame(predict(recid.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
-roccurve.rpart<- roc(response = val.dat$two_year_recid, predictor = rf.predict$Yes)
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+roccurve.rpart<- roc(response = val.dat$two_year_recid,
+                     predictor = rf.predict$Yes,
+                     percent = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         asp = 0,
+         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
+         col = roccurve.rpart.col)
 rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sensitivity"))
 #rf.vals$threshold
 #rf.vals$specificity
@@ -1144,7 +1152,7 @@ ggplot(data = frontier_datframe, aes(x = Specificity, y = Sensitivity)) + geom_p
 ```
 
 Another helpful illustration is a side-by-side comparison of the models ROC curves: 
-<span style ="color: red;"> Please remove this chart if you do not feel that it provides any extra value.</span> 
+
 ```{r}
 ### Comparing ROC charts
 ## Make a list of the predictions
@@ -1166,13 +1174,30 @@ Another helpful illustration is a side-by-side comparison of the models ROC curv
 # Curves
 #roccurve.logit, roc_lda, roc_qda, roccurve.trpart, roccurve.rpart
 #par(pty="s")
-plot(roccurve.logit, grid = TRUE, col = "blue", lty = 11, main = "Comparing ROC Curves", print.thres = TRUE)
-plot(roc_lda, col = "red", lty = 3, print.thres = TRUE, add = TRUE)
-plot (roc_qda, col = "green", lty = 10, add = TRUE)
-plot (roccurve.trpart, col = "purple", lty = 3, add = TRUE)
-plot (roccurve.rpart, col = "brown", lty = 2, add = TRUE)
-legend(0.3, 0.42, c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"), lty = c(1,1), 
-       lwd = c(2,2), col = c("blue", "red", "green", "purple", "brown"))
+#Logistic ROC
+plot(roccurve.logit,
+     grid = TRUE,
+     col = roccurve.logit.col,
+     lty = 11,
+     asp = 0,
+     main = "Comparing ROC Curves")
+#LDA ROC
+plot(roc_lda, col = roc_lda.col, lwd = 3, add = TRUE)
+#QDA ROC
+plot (roc_qda, col = roc_qda.col, lty = 10, add = TRUE)
+#Tree ROC
+plot (roccurve.trpart, col = roccurve.trpart.col, lty = 3, add = TRUE)
+#Random Forest ROC
+plot (roccurve.rpart, col = roccurve.rpart.col, lty = 2, add = TRUE)
+legend(x = 30,
+       y = 42,
+       legend = c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"),lty = c(1,1), 
+       lwd = c(2,2),
+       col = c(roccurve.logit.col,
+               roc_lda.col,
+               roc_qda.col,
+               roccurve.trpart.col,
+               roccurve.rpart.col))
       
 ```
 
@@ -1266,9 +1291,9 @@ After substantial discussion, we decided to use the full dataset for all analyse
 **New Variables**  
 ```{r, message = FALSE}
 kable(recid.new%>%
-  count(any_recid_2yr, two_year_recid, num.recidany), caption = "Outcome variable 1: any recidivism within 2 years")
+  count(any_recid_2yr, two_year_recid), caption = "Outcome variable 1: any recidivism within 2 years")
 kable(recid.new%>%
-  count(vio_recid_2yr, two_year_recid, is_violent_recid, num.recidvio), caption = "Outcome variable 2: violent recidivism within 2 years")
+  count(vio_recid_2yr, two_year_recid, is_violent_recid), caption = "Outcome variable 2: violent recidivism within 2 years")
 kable(recid.new%>%
   count(juv_fel_bi, juv_fel_count), caption = "Yes/No version of Juvenile Felonies")
 kable(recid.new%>%
@@ -1383,20 +1408,27 @@ Surprisingly, the ROC curve below using training data DOES show some value in th
 #Predicted values
 glm.viologit.predict.train  = predict(glm.viologit, train.dat, type="response")
 ## ROC plot
-roccurve.vio <- roc(response = train.dat$vio_recid_2yr, predictor = glm.viologit.predict.train)
-plot.roc(roccurve.vio, print.thres = TRUE)  
+roccurve.vio <- roc(response = train.dat$vio_recid_2yr,
+                    predictor = glm.viologit.predict.train,
+                    percent = TRUE)
+plot.roc(roccurve.vio,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         asp = 0,
+         col = roccurve.logit.col,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)")  
 ```
 
 **Update needed: somebody please check if I got the words right**
 <span style ="color: red;"> This should be modified to match our methodology section which should be a short paragraph somewhere above the start of section 2a.</span> 
 Re-running the confusion matrix above with this new cutoff gives a much higher misclassification rate. Essentially, the original model categorizing (almost) everyone as unlikely to reoffend violently within two years gives the best accuracy, but based on our methodology, it prioritizes specificity $too$ highly at the risk of sensitivity. That said, thinking about the humans involved, this more "optimal" sensitivity of 50% reduces specificity to 75%, meaning that 1 in 4 people who will not commit a violent crime are still treated as if they will. This makes us doubt that risk assessment tools can be useful at all.   
-<span style = "color: red;">I'm not comfortable with the conclusion that the sensitivity-specificity tradeoff causes us to doubt that risk assessment tools can be useful at all. This tradeoff exists with human decision-making as well. I would argue it would be unjust not to make an effort to release low-risk prisoners (e.g. nonviolent marijuana possession, no prior record). It would also be unjust to release an unrepentant serial killer, domestic abuser, hate criminal, etc. back into society.
+<span color = "red;">I'm not comfortable with the conclusion that the sensitivity-specificity tradeoff causes us to doubt that risk assessment tools can be useful at all. This tradeoff exists with human decision-making as well. I would argue it would be unjust not to make an effort to release low-risk prisoners (e.g. nonviolent marijuana possession, no prior record). It would also be unjust to release an unrepentant serial killer, domestic abuser, hate criminal, etc. back into society.
 The question (as I see it) is, how should the justice system handle ambiguous cases?
 We could make a case that human judgment is more nuanced/flexible/capable of incorporating idiosyncratic information about a case than a computer model is (although the counter-argument is that human judges tend to find more nuance in the case of white defendants).
 We could (and should) argue at some point in this document that these models are based on biased data and will thus be inherently biased (although of course the counter-argument is that human judges are hardly immune to bias themselves).
 But I'm not sure this is the place to argue it.</span>
 
-<span style ="color: red;"> I definitely think this should all be mentioned and we could write it in a little paragraph below this ROC curve under a little heading like "Phylosphical Analysis," what do you think? - SY.</span> 
+<span style ="color: red;"> I definitely think this should all be mentioned and we could write it in a little paragraph below this ROC curve under a little heading like "Philosophical Analysis," what do you think? - SY.</span> 
 <span style ="color: red;"> Oh! Is ROC curve necessary for training data? I don't think it is? I could be wrong. - SY, to be resolved</span> 
 However, this model may be over-fitting, so we must move on to using validation data to truly understand this model.
 
@@ -1410,19 +1442,18 @@ An AUC curve using validation data is shown below. The final misclassification r
 #Predicted values
 glm.viologit.predict.val  = predict(glm.viologit, val.dat, type="response")
 ## ROC plot
-roccurve.vio <- roc(response = val.dat$vio_recid_2yr, predictor = glm.viologit.predict.val)
-plot.roc(roccurve.vio, print.auc = TRUE, print.thres = TRUE)
+roccurve.vio <- roc(response = val.dat$vio_recid_2yr,
+                    predictor = glm.viologit.predict.val,
+                    percent = TRUE)
+plot.roc(roccurve.vio,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         col = roccurve.logit.col,
+         asp = 0)
 ```
 
-
-``` {r}
-#Predicted values
-glm.viologit.predict.val  = predict(glm.viologit, val.dat, type="response")
-## ROC plot
-roccurve.vio <- roc(response = val.dat$vio_recid_2yr, predictor = glm.viologit.predict.val)
-plot.roc(roccurve.vio, print.auc = TRUE, print.thres = TRUE)  
-```
-
+  
 The final relevant rates for our logistic model are shown below: 
 ``` {r}
 confusion.vioglm = ifelse(glm.viologit.predict.val > logit.threshold, "1", "0")
@@ -1559,12 +1590,12 @@ text(tree.viorecid, pretty = 0)
 # text(tree.viorecid, pretty = 0)
 ```
 
-The regression tree is shown below. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model isn't using the right cut off.
+The regression tree is shown below. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model using an inappropriate cutoff.
 
 ```{r, warnings = FALSE}
 # Regression Tree - Moses version
 #Run REGRESSION tree
-reg.tree.recidvio <- tree(formula = num.recidvio ~
+reg.tree.recidvio <- tree(formula = (as.numeric(vio_recid_2yr) - 1) ~
                          crime_factor +
                          age +
                          age_factor +
@@ -1579,12 +1610,23 @@ reg.tree.recidvio <- tree(formula = num.recidvio ~
                        data = train.dat)
 plot(reg.tree.recidvio)
 text(reg.tree.recidvio, pretty = 0)
+#Create new var for ROC curve -- for all datasets -- also added this to the master program up to.
+train.dat$response.recidvio <- (as.numeric(train.dat$vio_recid_2yr) - 1)
+val.dat$response.recidvio <- (as.numeric(val.dat$vio_recid_2yr) - 1)
+test.dat$response.recidvio <- (as.numeric(test.dat$vio_recid_2yr) - 1)
 #Predict and use the training data
 tree.pred.rpart.train   <- predict(reg.tree.recidvio, train.dat)
 #Create ROC curve
-roccurve.rpart<- roc(response = train.dat$num.recidvio, predictor = tree.pred.rpart.train)
+roccurve.rpart<- roc(response = train.dat$response.recidvio,
+                     predictor = tree.pred.rpart.train,
+                     percent = TRUE)
 #Plot ROC -- still for training
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         asp = 0,
+         col = roccurve.rpart.col)
 ```
 
 
@@ -1593,6 +1635,10 @@ Pruning these trees doesn't make sense, but we should still re-run them with val
 <span style ="color: red;"> Team, I think I may have done this wrong by running the model from scratch instead of re-running the previous model but just with different data. Anyhow, I can fix this later, but trees below are very pretty. Also, note that this violent section combines mine and moses's work to make it more concise (aka uses more of Moses's work and deletes some of mine :D) -- additional info is in the comments of the code. </span>  
 
 ```{R, warnings = FALSE}
+#Create new var for ROC curve -- for all datasets -- actually doing this in the main prg so can ignore.
+# val.dat$response.recidvio <- (as.numeric(val.dat$vio_recid_2yr) - 1)
+# val.dat$response.recidvio <- (as.numeric(val.dat$vio_recid_2yr) - 1)
+# test.dat$response.recidvio <- (as.numeric(test.dat$vio_recid_2yr) - 1)
 #CLASSIFICATION TREE 
 #Run tree
 tree.viorecid <- tree(formula = update(fullmodelvio, ~ . - priors_log), data = val.dat)
@@ -1601,7 +1647,7 @@ plot(tree.viorecid)
 text(tree.viorecid, pretty = 0)
 # Regression Tree - Moses version
 #Run REGRESSION tree
-reg.tree.recidvio <- tree(formula = num.recidvio ~
+reg.tree.recidvio <- tree(formula = response.recidvio ~
                          crime_factor +
                          age +
                          age_factor +
@@ -1616,12 +1662,19 @@ reg.tree.recidvio <- tree(formula = num.recidvio ~
                        data = val.dat)
 plot(reg.tree.recidvio)
 text(reg.tree.recidvio, pretty = 0)
-#Predict and use the val data
+#Predict and use the valing data
 tree.pred.rpart.val   <- predict(reg.tree.recidvio, val.dat)
 #Create ROC curve
-roccurve.rpart<- roc(response = val.dat$num.recidvio, predictor = tree.pred.rpart.val)
+roccurve.rpart<- roc(response = val.dat$response.recidvio,
+                     predictor = tree.pred.rpart.val,
+                     percent = TRUE)
 #Plot ROC 
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
+         asp = 0,
+         col = roccurve.rpart.col)
 ```
 
 
@@ -1646,12 +1699,12 @@ plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
 
 
 
->>>>>>> master
+
 ***2a.5V Random Forest***  
 ```  {r}
 recid.vio.rf =randomForest(formula = fullmodelvio,
                        data    = trainval.dat,
-                       mtry    = 4 #this shouild be sqrt(p) since we're doing classification. In our case, p = 14.
+                       mtry    = 4 #this should be sqrt(p) since we're doing classification. In our case, p = 14.
                        ,importance=TRUE #keeping this from book
                        )
 ``` 
@@ -1666,6 +1719,7 @@ This matrix shows that the overall error rate for this random forest is ``r scal
 varImpPlot(recid.vio.rf, main="Variable Importance by Factor")
 ```
 
+
 We also plotted ROC curves for the random forest, as shown below.
 ```{r, warnings = FALSE}
 recid.vio.rf =randomForest(formula = fullmodelvio,
@@ -1676,6 +1730,13 @@ recid.vio.rf =randomForest(formula = fullmodelvio,
 rf.vio.predict <- as.data.frame(predict(recid.vio.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
 ##Update this: two_year_recid news a violent equivalent
-roccurve.vio.rpart<- roc(response = val.dat$two_year_recid, predictor = rf.vio.predict$Yes)
-plot.roc(roccurve.vio.rpart, print.auc = TRUE, print.thres = TRUE)
+roccurve.vio.rpart<- roc(response = val.dat$two_year_recid,
+                         predictor = rf.vio.predict$Yes,
+                         percent = TRUE)
+plot.roc(roccurve.vio.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         col = roccurve.rpart.col,
+         asp = 0)
 ```
