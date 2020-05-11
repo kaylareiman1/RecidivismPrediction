@@ -31,14 +31,22 @@ library(caret)        # naive bayes package
 library(MASS)         # For LDA
 library(ROCR)
 library(pROC)         #roc function
-library(gridExtra)    #side-by-side plots
 #Format numbers so that they are not in scientific notation.
 options(scipen = 4)
 ```
 
+```{r}
+#COLOR SCHEME FOR ROC CURVES:
+roccurve.logit.col <- "#4D9DE0"
+roc_lda.col <- "#E15554"
+roc_qda.col <- "#E1BC29"
+roccurve.trpart.col <- "#7768AE"
+roccurve.rpart.col <- "#3BB273"
+```
+
 # **Introduction**  
 #### **Background**    
-In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inaccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their their published table replicated below:      
+In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inaccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their  published table replicated below:      
   
 | Type of error                              |           White | African American | 
 |--------------------------------------------|-----------------|------------------|
@@ -215,13 +223,13 @@ recid.new <- mutate(recid.all,
                                                       juv_other_count  >  0 ~ "Yes"))
                     
                     )
-#Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic varibles are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
 #add numeric var for violent recidivism to use in regression tree
 recid.new$num.recidvio <- (as.numeric(recid.new$vio_recid_2yr) - 1) #different from is_violent_recid
 recid.new$num.recidany <- (as.numeric(recid.new$any_recid_2yr) - 1) #same as two_year_recid
+#Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic variables are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
 recid.new <- dplyr::select(recid.new, #dataset 
                           id, #Personal ID
-                          any_recid_2yr, vio_recid_2yr, num.recidvio, num.recidany, # Recidivism variables: new -- factor and numeric versions
+                          any_recid_2yr, vio_recid_2yr, num.recidvio, num.recidany, # Recidivism variables: new -- factor and numeric versions  
                           two_year_recid, is_violent_recid, #Recidivism variables: original -- numeric
                           juv_fel_bi, juv_fel_count, juv_misd_bi, juv_misd_count, juv_other_bi, juv_other_count, #juvenile variables
                           priors_count, priors_log, # other personal history
@@ -232,10 +240,10 @@ recid.new <- dplyr::select(recid.new, #dataset
                         )
 ```
 
-After removing redundant variables and those that would be unknown at the time of conviction, our dataset consisted of `r nrow(recid.new)` observations.
+After removing redundant variables and those that would be unknown at the time of conviction, our dataset consisted of `r nrow(recid.new)` observations.  
 
 #### **1b: Demographic Characteristics**
-The univariate graphs below show that the most common categories in the dataset were men, black people, and those between the age of of 20 and 45.
+The univariate graphs below show that individuals in the dataset were most commonly male, black, and between the ages of 20 and 45.
 ```{r, message = FALSE}
 #These three graphs are identical, except with different input variables.
 ##########
@@ -261,7 +269,12 @@ race_factor.uni.all +
 ##########
 #  AGE   #
 ##########
-age_factor.uni.all <- ggplot(recid.new, aes(x=age_factor, fill = I("darkblue")))
+age_factor.uni.all <- ggplot(recid.new,
+                             aes(x=factor(age_factor,
+                                          levels = c("Less than 25",
+                                                     "25 - 45",
+                                                     "Greater than 45")),
+                                 fill = I("darkblue")))
 age_factor.uni.all + 
   geom_bar(stat = "count", na.rm = F) + 
   ggtitle("Univariate Age Breakdown") + 
@@ -465,7 +478,7 @@ An overview of datasets is below:
 
 
 
-**PCA: An unsupervised method to learn more about how our variables relate**    
+**PCA: An unsupervised method to learn more about how our variables relate**  
 
 - If we want to see if PCA will work well on this data, we look first to see if there are many correlated variables.
 - We use a pairs plot to see correlation: 
@@ -522,7 +535,6 @@ Unfortunately because of the density of the data the plot is a bit more challeng
 
 #### **2a: Data Mining Methods and Performance**
 <span style = "color: red;">Edit writing if time allows</span>
-
 **Possible models**  
  
 Given our task of predicting binary outcomes, this is fundamentally a classification problem. We decided to pursue the following methods:  
@@ -539,7 +551,7 @@ Source: [ISLR](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&c
 ***2a.1: Logistic regression*** 
 
 **Variable Selection**  
-Our first step is determining which variables are most predictive. We run this process on the training dataset with the `regsubsets` function using the exhaustive method. Because this is a logistic instead of a linear regression, we use AIC/Mallow's CP and BIC instead of R-squared.
+Our first step is determining which variables are most predictive. We run this process on the training dataset with the `regsubsets` function using the exhaustive method. Because this is a logistic instead of a linear regression, we use AIC/Mallow's CP and BIC instead of R-squared.  
 
 ```{r}
 #Model that includes all of our potential variables:
@@ -621,7 +633,7 @@ We then evaluated our classifier's accuracy, examining both specificity and sens
    -**Accuracy**: This is the percentage of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different. That said, it is the simplest measure of a classifier's performance. The accuracy rate is 1 - the misclassification rate.    
     -**Specificity**: This is the percentage of non-recidivators who are correctly classified by the model. High specificity is important because it reduces the risk of incarcerating people who pose no risk to society. We consider specificity the most important metric for our all-recidivism (as opposed to violent recidivism) model because we believe false positives (which lead to wrongful incarceration) are more costly than false negatives (which lead to wrongful release).  
    -**Sensitivity**: This is the percentage of recidivators who are correctly classified by the model. A highly sensitive model would correctly predict most individuals who will recidivate within two years. We consider sensitivity a more important metric for our violent recidivism model than for the full recidivism model.  
-   
+
 Accuracy, specificity, and sensitivity can be calculated using the confusion matrix below.  
 ``` {r}
 #Predicted values
@@ -631,17 +643,15 @@ confusion.glm = ifelse(train.pred.logit > 0.5, "1", "0")
 confusions.pred.train = table(confusion.glm, train.dat$any_recid_2yr)
 dimnames(confusions.pred.train)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.pred.train, caption = "Logistic regression: confusion matrix using training data")
-kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2),
-      col.names = "Misclassification Rate (with train.dat):")
+kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2), col.names = "Misclassification Rate (with train.dat):")
 ```
-When applied to the training data, this model has an accuracy rate of ``r scales::percent(sum(diag(confusions.pred.train)) / sum(confusions.pred.train), accuracy = 0.1)``.
+When applied to the training data, this model has an accuracy rate of ``r scales::percent(sum(diag(confusions.pred.train)) / sum(confusions.pred.train), accuracy = 0.1)``.  
 
 **Model Validation**  
 Training data tends to underestimate the true error rate when the same model is applied to new data. All models below use our validation dataset.
 
 The following ROC chart shows that our logistic regression model will successfully classify a randomly selected recidivator as a higher risk than a randomly selected non-recidivator 74% of the time. This is a reasonable classifier. As we change the threshold, the relative values of Specificity and Sensitivity change accordingly. While the chart below recommends a threshold of 0.462, we may prefer a higher threshold in order to maximize specificity.  
 Please refer to this ROC chart as you progress through the logistic regression section.
-
 
 ```{r, message = FALSE}
 glm.logit.predict.val  = predict(glm.logit, val.dat, type="response")
@@ -652,7 +662,7 @@ roccurve.logit <- roc(response = val.dat$any_recid_2yr,
 #plot.roc(roccurve.logit, color = "red", lwd = 3, main= "Logistic Regression - ROC Chart", print.auc = TRUE, print.thres = TRUE)
 plot(roccurve.logit,
      main= "Logistic Regression - ROC Chart",
-     col = "darkblue",
+     col = roccurve.logit.col,
      lwd = 3,
      asp = 0,
      print.auc = TRUE,
@@ -690,7 +700,7 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
 #Changing threshold for next iteration
 logit.threshold <- 0.6
 ```
-Now we will increase the threshold to ``r scales::percent(logit.threshold)``.
+Now we will increase the threshold to ``r scales::percent(logit.threshold)``.  
 With a **``r scales::percent(logit.threshold)``** threshold we find the following results:
 ```{r, message = FALSE}
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
@@ -771,7 +781,8 @@ lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
 lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
 kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
-             Specificity = scales::percent(lda.spec, accuracy = 0.1)))
+             Specificity = scales::percent(lda.spec, accuracy = 0.1)),
+      format = "markdown")
 ```
   
 **Model Validation**  
@@ -797,7 +808,7 @@ roc_lda <- roc(response = val.dat$any_recid_2yr,
                percent = TRUE)
 plot(roc_lda,
      main="LDA - ROC Chart",
-     col = "darkblue",
+     col = roc_lda.col,
      lwd = 3,
      asp = 0,
      print.auc = TRUE,
@@ -832,7 +843,8 @@ qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
 qda.spec <- qda.tab[1,1] / sum(qda.tab[,1])
 kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.sens, accuracy = 0.1),
-             Specificity = scales::percent(qda.spec, accuracy = 0.1)))
+             Specificity = scales::percent(qda.spec, accuracy = 0.1)),
+      format = "markdown")
 ```
 
 **Validation of QDA**
@@ -850,24 +862,24 @@ qda.cv.spec <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
 kable(tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.cv.spec, accuracy = 0.1)))
-```
-
 ```{r}
 ## Drop that ROC like it's hot
 roc_qda <- roc(response = val.dat$any_recid_2yr,
                predictor = qda.cv.pred$posterior[,"Yes"],
                percent = TRUE)
 plot(roc_qda,
-     col="darkblue",
+     col= roc_qda.col,
      lwd = 3,
      asp = 0,
      main="QDA - ROC Chart",
      print.auc = TRUE,
-     print.thres = TRUE)  
+     print.thres = TRUE,
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 #auc(roc_qda)
 ```
-
 The QDA model is less accurate (as measured by AUC)
+
+
 
 ***2a.4 Classification And Regression Tree***  
 
