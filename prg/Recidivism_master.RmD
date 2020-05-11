@@ -458,8 +458,9 @@ An overview of datasets is below:
 **PCA for logistic regression**    
 
 - If we want to see if PCA will work well on this data, we look first to see if there are many correlated variables.
-- We use a pairs plot to see correlation:
+- We use a pairs plot to see correlation: 
 ```{r}
+#Modified to use training data, change if this was wrong -MH
 panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
 {
     usr <- par("usr"); on.exit(par(usr))
@@ -470,7 +471,7 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
     if(missing(cex.cor)) cex.cor <- 0.4/strwidth(txt)
     text(0.5, 0.5, txt, cex = pmax(1, cex.cor * r))
 }
-pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
+pairs(train.dat[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
 ```
 - Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. 
 - `priors_count` and `length_of_stay` along with `length_of_stay` and `crime_factor` seem to have the high correlations relative to the others (0.11)
@@ -482,27 +483,29 @@ pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor",
 - `priors_count` and `juv_misd_count` have high correlations relative to the other pairs (0.27)
 - Since none of these pairs are extremely correlated, the PCA method of determining which features capture the best variation in the data. 
 
-We might still want to attempt PCA
-- We first want to normalize the data in order to standaradize each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.
-- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way
+We might still want to attempt PCA  
+- We first want to normalize the data by standardizing each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.  
+- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way  
 ```{r}
-recid.new.sub <- recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
+recid.new.sub <- recid.new %>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
 recid.new.sub <- na.omit(recid.new.sub)
 recid.new.scaled <- scale(recid.new.sub) # This normalizes the data
 recid.pca <- princomp(recid.new.scaled) # Perform PCA
 recid.pca$loadings = -recid.pca$loadings
 recid.pca$scores = -recid.pca$scores
-biplot(recid.pca, scale = 0) # construct biplot
+#I changed the colors to be ugly but more legible
+biplot(recid.pca,
+       scale = 0,
+       cex = c(0.8, 1),
+       col=c("darkorange", "dodgerblue4")) # construct biplot
 ## Add grid lines
 abline(v=0, lty=2, col="grey50")
 abline(h=0, lty=2, col="grey50")
 ```
 
-We started with 6 dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each of the points is labeled in terms of the individual in the system that it corresponds to and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, and it also has a z1 value and z2 value, and that is how it's being plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. The vectors for each variable are aligned with positive component 1 values (except for `age`), meaning that the new component 1 axis reflects counts of misdemeanors and felonies, and length of stay in a prison/jail, which is related to those. The Component 2 axis therefore reflects age, showing that individuals with lower age are ones with higher recidivism rates after 2 years, and the older you are, the lower your recidivism rate after two years. 
-
- When looking at this plot, we see that individuals plotted in the same direction/location as the vectors are the ones that are highly identified by the vector factors. For example, individual 5130 will have a high `juv_other_count` (second component variation), but will have a lower `length_of_stay` (first component variation) than individual 1526.  Furthermore, this process has now ensured that the 6 columns are uncorrelated with one another.
- 
-The plot allows us to see that certainly `age` is highly uncorrelated with all the other variables, `juv_other_count` and `juv_misd_count` are more correlated with each other, while `juv_fel_count`, `length_of_stay` and `priors_log` can be considered another correlated group.
+We started with six-dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each numbered point represents an individual and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, which determine the z1 and z2 values by which it is plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. 
+While z1 and z2 are abstractions without easily interpretable meaning, they allow us to sort related variables into groups. `Priors_log` appears to be closely related to `juv_fel_count` and `length_of_stay`. Including all three of these in a model may not add much value compared with including just one.  
+`Age` is quite independent from the other variables, meaning that it has the potential to add value to a model even if the others are all already present. `Priors_log` and `juv_other_count` are orthogonal, making them a promising combination for our models.  
 
 Unfortunately because of the density of the data the plot is a bit more challenging to read, but we do find it useful to highlight correlations that were otherwise less obvious in the pairs plot.
  
