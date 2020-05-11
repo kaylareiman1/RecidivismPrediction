@@ -35,6 +35,15 @@ library(pROC)         #roc function
 options(scipen = 4)
 ```
 
+```{r}
+#COLOR SCHEME FOR ROC CURVES:
+roccurve.logit.col <- "#4D9DE0"
+roc_lda.col <- "#E15554"
+roc_qda.col <- "#E1BC29"
+roccurve.trpart.col <- "#7768AE"
+roccurve.rpart.col <- "#3BB273"
+```
+
 # **Introduction**  
 #### **Background**    
 In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inacccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their their published table replicated below:      
@@ -262,7 +271,12 @@ race_factor.uni.all +
 ##########
 #  AGE   #
 ##########
-age_factor.uni.all <- ggplot(recid.new, aes(x=age_factor, fill = I("darkblue")))
+age_factor.uni.all <- ggplot(recid.new,
+                             aes(x=factor(age_factor,
+                                          levels = c("Less than 25",
+                                                     "25 - 45",
+                                                     "Greater than 45")),
+                                 fill = I("darkblue")))
 age_factor.uni.all + 
   geom_bar(stat = "count", na.rm = F) + 
   ggtitle("Univariate Age Breakdown") + 
@@ -637,7 +651,6 @@ kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2)
 Training error (plotted above) tends to underestimate the true error rate when the same model is applied to new data.
 
 The following ROC chart shows that our logistic regression model will successfully classify a randomly selected recidivator as a higher risk than a randomly selected non-recidivator 74% of the time. This is a reasonable classifier. However, as we change the threshold, the relative values of Specificity and Sensitivity change accordingly. Please refer to this ROC chart as you progress through the logistic regression section.
-<span style ="color: red;">**I modified the formatting here to improve readability -- if you like it, let's copy/paste the formatting to the other ROCs.**</span>
 
 ```{r, message = FALSE}
 glm.logit.predict.val  = predict(glm.logit, val.dat, type="response")
@@ -648,7 +661,7 @@ roccurve.logit <- roc(response = val.dat$any_recid_2yr,
 #plot.roc(roccurve.logit, color = "red", lwd = 3, main= "Logistic Regression - ROC Chart", print.auc = TRUE, print.thres = TRUE)
 plot(roccurve.logit,
      main= "Logistic Regression - ROC Chart",
-     col = "darkblue",
+     col = roccurve.logit.col,
      lwd = 3,
      asp = 0,
      print.auc = TRUE,
@@ -794,7 +807,7 @@ roc_lda <- roc(response = val.dat$any_recid_2yr,
                percent = TRUE)
 plot(roc_lda,
      main="LDA - ROC Chart",
-     col = "darkblue",
+     col = roc_lda.col,
      lwd = 3,
      asp = 0,
      print.auc = TRUE,
@@ -848,14 +861,17 @@ tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
 ```
 ```{r}
 ## Drop that ROC like it's hot
-roc_qda <- roc(response = val.dat$any_recid_2yr, predictor = qda.cv.pred$posterior[,"Yes"])
+roc_qda <- roc(response = val.dat$any_recid_2yr,
+               predictor = qda.cv.pred$posterior[,"Yes"],
+               percent = TRUE)
 plot(roc_qda,
-     col="darkblue",
+     col= roc_qda.col,
      lwd = 3,
      asp = 0,
      main="QDA - ROC Chart",
      print.auc = TRUE,
-     print.thres = TRUE)
+     print.thres = TRUE,
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 #auc(roc_qda)
 ```
 The ROC chart for the QDA model suggests that the optimal cutoff value is at 21.8%. Since this would suggest giving a higher rating to an individual who has a 21.8% chance of recidivating within two years, we are less likely to deem this model appropriate for this dataset.
@@ -987,30 +1003,35 @@ tree.pred.rpart.val   <- predict(tree.recid.rpart.train, val.dat)
 roccurve.trpart<- roc(response = val.dat$two_year_recid,
                       predictor = tree.pred.rpart.val[,2],
                       levels = c(0, 1),
-                      direction = "<")
+                      direction = "<",
+                      percent = TRUE)
 #plot.roc(roccurve.trpart, print.auc = TRUE, print.thres = TRUE)
 plot(roccurve.trpart,
-     col="darkblue",
+     col= roccurve.trpart.col,
      lwd = 3,
      asp = 0,
      main="Tree - ROC Chart",
      print.auc = TRUE,
-     print.thres = "local maximas")
+     print.thres = "local maximas",
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 tree.vals <- coords(roccurve.trpart, "best", ret=c("threshold", "specificity", "sensitivity"))
 #tree.vals$threshold
 #tree.vals$specificity
 #tree.vals$sensitivity
 ```
 
-From the ROC chart we do see that the AUC value is lower for the regression tree than for the logistic regression or LDA models. The regression tree allows for more nuance than the classification tree, with 
-<span style ="color: red;">**Could someone write a quick sentence about what information the tree is providing us here?**</span> 
+From the ROC chart we do see that the AUC value is lower for the regression tree than for the logistic regression or LDA models. The regression tree allows for more nuance than the classification tree, with six threshold options (including all-or-nothing options).  
+For instance, a threshold of 0.62 results in a tree that expects individuals to recidivate if and only if:  
+* They have at least 3 priors and are under 32 years old  
+* They have at least 7 priors and are at least 32 years old  
+Using those criteria, only 41.6% of recidivators would be correctly identified, but 85.4% of non-recidivators would be correctly identified as low threats.  
 
 
 ***2a.5 Random Forest***  
 
 Building on the classification tree work above, we now assess the data using random forests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
 
-For the purposes of this project, we focused on classification tress. The ISLR book and Data Mining lectures focused on random forest models for regression trees, which while helpful for understanding concepts, was not sufficient for the purposes of this project. 
+For the purposes of this project, we focused on classification trees. The ISLR book and Data Mining lectures focused on random forest models for regression trees, which while helpful for understanding concepts, was not sufficient for the purposes of this project. 
 
 It is worth noting, that based on the randomForest author's [documentation](https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr), cross-validation is not needed, since it is run automatically. Therefore, we are combining our training and validation data and using `trainval.dat`.
 <span style ="color: red;">**I trust that this is the way to do this, but I would just like someone to explain to me (not in the doc) why we are merging the data sets. Thank you! This message can be deleted once read. - SY**</span> 
@@ -1023,7 +1044,7 @@ recid.rf =randomForest(formula = fullmodel,
                        )
 ``` 
 
-The confusion matrix for our random forrest created using training data is below:
+The confusion matrix for our random forest created using training data is below:
 ```{r}
 recid.rf$confusion
 rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(trainval.dat)
@@ -1047,8 +1068,15 @@ recid.rf =randomForest(formula = fullmodel,
                        )
 rf.predict <- as.data.frame(predict(recid.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
-roccurve.rpart<- roc(response = val.dat$two_year_recid, predictor = rf.predict$Yes)
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+roccurve.rpart<- roc(response = val.dat$two_year_recid,
+                     predictor = rf.predict$Yes,
+                     percent = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         asp = 0,
+         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
+         col = roccurve.rpart.col)
 rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sensitivity"))
 #rf.vals$threshold
 #rf.vals$specificity
@@ -1103,7 +1131,7 @@ ggplot(data = frontier_datframe, aes(x = Specificity, y = Sensitivity)) + geom_p
 ```
 
 Another helpful illustration is a side-by-side comparison of the models ROC curves: 
-<span style ="color: red;"> Please remove this chart if you do not feel that it provides any extra value.</span> 
+
 ```{r}
 ### Comparing ROC charts
 ## Make a list of the predictions
@@ -1125,13 +1153,32 @@ Another helpful illustration is a side-by-side comparison of the models ROC curv
 # Curves
 #roccurve.logit, roc_lda, roc_qda, roccurve.trpart, roccurve.rpart
 #par(pty="s")
-plot(roccurve.logit, grid = TRUE, col = "blue", lty = 11, main = "Comparing ROC Curves", print.thres = TRUE)
-plot(roc_lda, col = "red", lty = 3, print.thres = TRUE, add = TRUE)
-plot (roc_qda, col = "green", lty = 10, add = TRUE)
-plot (roccurve.trpart, col = "purple", lty = 3, add = TRUE)
-plot (roccurve.rpart, col = "brown", lty = 2, add = TRUE)
-legend(0.3, 0.42, c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"), lty = c(1,1), 
-       lwd = c(2,2), col = c("blue", "red", "green", "purple", "brown"))
+
+
+#Logistic ROC
+plot(roccurve.logit,
+     grid = TRUE,
+     col = roccurve.logit.col,
+     lty = 11,
+     asp = 0,
+     main = "Comparing ROC Curves")
+#LDA ROC
+plot(roc_lda, col = roc_lda.col, lwd = 3, add = TRUE)
+#QDA ROC
+plot (roc_qda, col = roc_qda.col, lty = 10, add = TRUE)
+#Tree ROC
+plot (roccurve.trpart, col = roccurve.trpart.col, lty = 3, add = TRUE)
+#Random Forest ROC
+plot (roccurve.rpart, col = roccurve.rpart.col, lty = 2, add = TRUE)
+legend(x = 30,
+       y = 42,
+       legend = c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"),lty = c(1,1), 
+       lwd = c(2,2),
+       col = c(roccurve.logit.col,
+               roc_lda.col,
+               roc_qda.col,
+               roccurve.trpart.col,
+               roccurve.rpart.col))
       
 ```
 
@@ -1342,8 +1389,15 @@ Surprisingly, the ROC curve below using training data DOES show some value in th
 #Predicted values
 glm.viologit.predict.train  = predict(glm.viologit, train.dat, type="response")
 ## ROC plot
-roccurve.vio <- roc(response = train.dat$vio_recid_2yr, predictor = glm.viologit.predict.train)
-plot.roc(roccurve.vio, print.thres = TRUE)  
+roccurve.vio <- roc(response = train.dat$vio_recid_2yr,
+                    predictor = glm.viologit.predict.train,
+                    percent = TRUE)
+plot.roc(roccurve.vio,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         asp = 0,
+         col = roccurve.logit.col,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)")  
 ```
 
 **Update needed: somebody please check if I got the words right**
@@ -1355,7 +1409,7 @@ We could make a case that human judgment is more nuanced/flexible/capable of inc
 We could (and should) argue at some point in this document that these models are based on biased data and will thus be inherently biased (although of course the counter-argument is that human judges are hardly immune to bias themselves).
 But I'm not sure this is the place to argue it.</span>
 
-<span style ="color: red;"> I definitely think this should all be mentioned and we could write it in a little paragraph below this ROC curve under a little heading like "Phylosphical Analysis," what do you think? - SY.</span> 
+<span style ="color: red;"> I definitely think this should all be mentioned and we could write it in a little paragraph below this ROC curve under a little heading like "Philosophical Analysis," what do you think? - SY.</span> 
 <span style ="color: red;"> Oh! Is ROC curve necessary for training data? I don't think it is? I could be wrong. - SY, to be resolved</span> 
 However, this model may be over-fitting, so we must move on to using validation data to truly understand this model.
 
@@ -1369,17 +1423,18 @@ An AUC curve using validation data is shown below. The final misclassification r
 #Predicted values
 glm.viologit.predict.val  = predict(glm.viologit, val.dat, type="response")
 ## ROC plot
-roccurve.vio <- roc(response = val.dat$vio_recid_2yr, predictor = glm.viologit.predict.val)
-plot.roc(roccurve.vio, print.auc = TRUE, print.thres = TRUE)
+roccurve.vio <- roc(response = val.dat$vio_recid_2yr,
+                    predictor = glm.viologit.predict.val,
+                    percent = TRUE)
+plot.roc(roccurve.vio,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         col = roccurve.logit.col,
+         asp = 0)
 ```
 
-``` {r}
-#Predicted values
-glm.viologit.predict.val  = predict(glm.viologit, val.dat, type="response")
-## ROC plot
-roccurve.vio <- roc(response = val.dat$vio_recid_2yr, predictor = glm.viologit.predict.val)
-plot.roc(roccurve.vio, print.auc = TRUE, print.thres = TRUE)  
-```
+  
 The final relevant rates for our logistic model are shown below: 
 ``` {r}
 confusion.vioglm = ifelse(glm.viologit.predict.val > logit.threshold, "1", "0")
@@ -1516,7 +1571,7 @@ text(tree.viorecid, pretty = 0)
 # text(tree.viorecid, pretty = 0)
 ```
 
-The regression tree is shown below. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model isn't using the right cut off.
+The regression tree is shown below. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model using an inappropriate cutoff.
 
 ```{r, warnings = FALSE}
 # Regression Tree - Moses version
@@ -1543,9 +1598,16 @@ test.dat$response.recidvio <- (as.numeric(test.dat$vio_recid_2yr) - 1)
 #Predict and use the training data
 tree.pred.rpart.train   <- predict(reg.tree.recidvio, train.dat)
 #Create ROC curve
-roccurve.rpart<- roc(response = train.dat$response.recidvio, predictor = tree.pred.rpart.train)
+roccurve.rpart<- roc(response = train.dat$response.recidvio,
+                     predictor = tree.pred.rpart.train,
+                     percent = TRUE)
 #Plot ROC -- still for training
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         asp = 0,
+         col = roccurve.rpart.col)
 ```
 
 
@@ -1584,9 +1646,16 @@ text(reg.tree.recidvio, pretty = 0)
 #Predict and use the valing data
 tree.pred.rpart.val   <- predict(reg.tree.recidvio, val.dat)
 #Create ROC curve
-roccurve.rpart<- roc(response = val.dat$response.recidvio, predictor = tree.pred.rpart.val)
+roccurve.rpart<- roc(response = val.dat$response.recidvio,
+                     predictor = tree.pred.rpart.val,
+                     percent = TRUE)
 #Plot ROC 
-plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
+         asp = 0,
+         col = roccurve.rpart.col)
 ```
 
 
@@ -1611,12 +1680,12 @@ plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
 
 
 
->>>>>>> master
+
 ***2a.5V Random Forest***  
 ```  {r}
 recid.vio.rf =randomForest(formula = fullmodelvio,
                        data    = trainval.dat,
-                       mtry    = 4 #this shouild be sqrt(p) since we're doing classification. In our case, p = 14.
+                       mtry    = 4 #this should be sqrt(p) since we're doing classification. In our case, p = 14.
                        ,importance=TRUE #keeping this from book
                        )
 ``` 
@@ -1642,6 +1711,13 @@ recid.vio.rf =randomForest(formula = fullmodelvio,
 rf.vio.predict <- as.data.frame(predict(recid.vio.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
 ##Update this: two_year_recid news a violent equivalent
-roccurve.vio.rpart<- roc(response = val.dat$two_year_recid, predictor = rf.vio.predict$Yes)
-plot.roc(roccurve.vio.rpart, print.auc = TRUE, print.thres = TRUE)
+roccurve.vio.rpart<- roc(response = val.dat$two_year_recid,
+                         predictor = rf.vio.predict$Yes,
+                         percent = TRUE)
+plot.roc(roccurve.vio.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         col = roccurve.rpart.col,
+         asp = 0)
 ```
