@@ -379,7 +379,7 @@ race_factor.bi.all.recid <- ggplot(data = race_factor.bi.conf.all, aes(x = race_
   geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1)  +
   theme(text = element_text(size=12), axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1))
 ##########
-# age  #
+# AGE  #
 ##########
 # Bivariate w/ decile score 
 age_factor.bi.conf.all <- recid.new %>%
@@ -387,7 +387,14 @@ age_factor.bi.conf.all <- recid.new %>%
   summarize(Avgdecile_score = mean(decile_score),
             upper = t.test(decile_score)$conf.int[1],
             lower = t.test(decile_score)$conf.int[2])
-age_factor.bi.all.dec <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgdecile_score, fill = I("darkorange"))) +  geom_bar(stat = "identity") +
+age_factor.bi.all.dec <- ggplot(data = age_factor.bi.conf.all,
+                                aes(x = factor(age_factor,
+                                               levels = c("Less than 25",
+                                                          "25 - 45",
+                                                          "Greater than 45")),
+                                    y = Avgdecile_score,
+                                    fill = I("darkorange"))) +
+  geom_bar(stat = "identity") +
   xlab("Age") + 
   ylab("Average prediction") +
   ggtitle("Prediction from COMPAS") + 
@@ -400,9 +407,15 @@ age_factor.bi.conf.all <- recid.new %>%
   summarize(Avgtwo_year_recid = mean(two_year_recid),
             upper = t.test(two_year_recid)$conf.int[1],
             lower = t.test(two_year_recid)$conf.int[2])
-age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all, aes(x = age_factor, y = Avgtwo_year_recid, fill = I("darkblue"))) +
+age_factor.bi.all.recid <- ggplot(data = age_factor.bi.conf.all,
+                                  aes(x = factor(age_factor,
+                                                 levels = c("Less than 25",
+                                                            "25 - 45",
+                                                            "Greater than 45")),
+                                      y = Avgtwo_year_recid,
+                                      fill = I("darkblue"))) +
   geom_bar(stat = "identity") +
-  xlab("age") + 
+  xlab("Age") + 
   ylab("Average Rate") +
   ggtitle("Actual 2-year Recidivism") + 
   guides(fill = FALSE) +
@@ -496,7 +509,7 @@ recid.pca$scores = -recid.pca$scores
 biplot(recid.pca,
        scale = 0,
        cex = c(0.8, 1),
-       col=c("darkorange", "dodgerblue4")) # construct biplot
+       col=c("darkorange", "darkblue")) # construct biplot
 ## Add grid lines
 abline(v=0, lty=2, col="grey50")
 abline(h=0, lty=2, col="grey50")
@@ -554,11 +567,11 @@ par(mfrow = c(1, 2))
 #AIC Chart
 plot(x = summary(recid.subsets)$cp, xlab = "Number of Variables", ylab = "Mallow's CP")
 mincp <- which.min(summary(recid.subsets)$cp)
-points(mincp, summary(recid.subsets)$cp[mincp], col = "green3", cex = 1, pch = 20)
+points(mincp, summary(recid.subsets)$cp[mincp], col = "darkorange", cex = 1, pch = 20)
 #BIC Chart
 plot(x = summary(recid.subsets)$bic, xlab = "Number of Variables", ylab = "BIC")
 minbic <- which.min(summary(recid.subsets)$bic)
-points(minbic, summary(recid.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
+points(minbic, summary(recid.subsets)$bic[minbic], col = "darkorange", cex = 1, pch = 20)
 ```
   
 Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to AIC) variables. As the decrease in adjusted AIC is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
@@ -596,7 +609,9 @@ train.pred.logit <- predict(glm.logit, type = "response")
 ggplot(data = as.data.frame(train.pred.logit),
        aes(x = train.pred.logit)) +
   geom_histogram(aes(y = (..count..)/sum(..count..)),
-                 binwidth = 0.25/8, boundary = 0) +
+                 binwidth = 0.25/8,
+                 boundary = 0,
+                 fill = "darkblue") +
   labs(x = "Predicted Probability of Recidivism",
        y = "Proportion of Individuals",
        title = "Distribution of Recidivism Predictions (Logistic Regression)")
@@ -621,15 +636,24 @@ kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2)
 **Model Validation**  
 Training error (plotted above) tends to underestimate the true error rate when the same model is applied to new data.
 
-The following ROC chart shows that the logistic regression set at a threshold of 46.2% will classify a randomly selected observation where an indvidual did recidivate higher than a randomly selected individual who did not recidivate within two years with a probability of 74%. This is a reasonable classifier. However, as we'll see, perhaps the accuracy of the model is not what is most important for this model, and as we change the threshold, we observe that Specificity and Sensitivity change accordingly. Please refer to this ROC chart as you progress through the logistic regression section.
-<span style ="color: red;">**If anyone could proof read that little paragraph, that would be greatly appreciated!**</span>  
+The following ROC chart shows that our logistic regression model will successfully classify a randomly selected recidivator as a higher risk than a randomly selected non-recidivator 74% of the time. This is a reasonable classifier. However, as we change the threshold, the relative values of Specificity and Sensitivity change accordingly. Please refer to this ROC chart as you progress through the logistic regression section.
+<span style ="color: red;">**I modified the formatting here to improve readability -- if you like it, let's copy/paste the formatting to the other ROCs.**</span>
 
 ```{r, message = FALSE}
 glm.logit.predict.val  = predict(glm.logit, val.dat, type="response")
 ## ROC plot
-roccurve.logit <- roc(response = val.dat$any_recid_2yr, predictor = glm.logit.predict.val)
+roccurve.logit <- roc(response = val.dat$any_recid_2yr,
+                      predictor = glm.logit.predict.val,
+                      percent = TRUE)
 #plot.roc(roccurve.logit, color = "red", lwd = 3, main= "Logistic Regression - ROC Chart", print.auc = TRUE, print.thres = TRUE)
-plot(roccurve.logit, color = "blue", lwd = 3, main= "Logistic Regression - ROC Chart", print.auc = TRUE, print.thres = TRUE)
+plot(roccurve.logit,
+     main= "Logistic Regression - ROC Chart",
+     col = "darkblue",
+     lwd = 3,
+     asp = 0,
+     print.auc = TRUE,
+     print.thres = TRUE,
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 ```
 
 We used the predict function on our glm logistic regression model to estimate the probability that a person will recidivate two years after their initial arrest. The `type="response"` option tells R to output probabilities of the form P(Y=1 | X). The data given to validate the training model is `rand.split = 2` or `val.dat`, which is a subset of 20% the original dataset. 
@@ -765,12 +789,20 @@ tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
 ```
 ```{r}
 ## Drop an ROC like it's hot
-roc_lda <- roc(response = val.dat$any_recid_2yr, predictor = lda.pred.val$posterior[,"Yes"])
-plot(roc_lda, col="red", lwd = 3, main="LDA - ROC Chart", print.auc = TRUE, print.thres = TRUE)
-auc(roc_lda)
+roc_lda <- roc(response = val.dat$any_recid_2yr,
+               predictor = lda.pred.val$posterior[,"Yes"],
+               percent = TRUE)
+plot(roc_lda,
+     main="LDA - ROC Chart",
+     col = "darkblue",
+     lwd = 3,
+     asp = 0,
+     print.auc = TRUE,
+     print.thres = TRUE,
+     print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 ```
 
-The ROC chart shows that the AUC score is `r auc(roc_lda)`, a value greater than 0.5 meaning that the LDA model is reasonable measure of separability. Futhermore, it shows us that the optimal threshold for the LDA model is at 51.9% instead of 50%, which would achieve a higher Specificity score. 
+The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value greater than 0.5 meaning that the LDA model is reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9% instead of 50%, which would achieve a higher Specificity score. 
 
 ***2a.3 Quadratic Discriminant Analysis (QDA)***  
 **Variable Selection and Model Outcomes**  
@@ -817,7 +849,13 @@ tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
 ```{r}
 ## Drop that ROC like it's hot
 roc_qda <- roc(response = val.dat$any_recid_2yr, predictor = qda.cv.pred$posterior[,"Yes"])
-plot(roc_qda, col="red", lwd = 3, main="QDA - ROC Chart", print.auc = TRUE, print.thres = TRUE)
+plot(roc_qda,
+     col="darkblue",
+     lwd = 3,
+     asp = 0,
+     main="QDA - ROC Chart",
+     print.auc = TRUE,
+     print.thres = TRUE)
 #auc(roc_qda)
 ```
 The ROC chart for the QDA model suggests that the optimal cutoff value is at 21.8%. Since this would suggest giving a higher rating to an individual who has a 21.8% chance of recidivating within two years, we are less likely to deem this model appropriate for this dataset.
@@ -836,7 +874,7 @@ summary.tree.recid <- summary(tree.recid)
 ```
 
 
-**<span style ="color: red;">We probably don't need this regression tree, but here it is in case we want it! Let's decide if we want this or not! We need to explain the outcome of this tree if we keep it</span>**
+**<span style ="color: red;">We probably don't need this regression tree, but here it is in case we want it! Let's decide if we want this or not! We need to explain the outcome of this tree if we keep it</span>**  
 ```{r}
 #Run REGRESSION tree
 reg.tree.recid <- tree(formula = (as.numeric(any_recid_2yr) - 1) ~
@@ -858,7 +896,7 @@ plot(reg.tree.recid)
 text(reg.tree.recid, pretty = 0)
 ```
 
-Using the training dataset (with `r nrow(train.dat)` rows), we find the that there is a misclassification rate of `r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)`. The initial tree predicting whether a person will recidivate within two years is shown below.  
+Using the training dataset (with ``r nrow(train.dat)`` rows), we find the that there is a misclassification rate of ``r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)``. The initial tree predicting whether a person will recidivate within two years is shown below.  
 
 ```{r}
 kable(summary.tree.recid$used, caption = "Variables used in first tree")
@@ -866,15 +904,18 @@ plot(tree.recid)
 text(tree.recid, pretty=0)
 ```
 
-However, this is only the first step in the process. We must next re-run the code using our validation data with (with `r nrow(val.dat)` rows).
+However, this is only the first step in the process. We must next re-run the code using our validation data with (with ``r nrow(val.dat)`` rows).
 
 ```{r}
 tree.pred=predict(tree.recid, val.dat, type="class")
-table(tree.pred,val.dat$any_recid_2yr)
-tree.pred.errors = table(tree.pred,val.dat$any_recid_2yr)[2,1] + table(tree.pred,val.dat$any_recid_2yr)[1,2]
+tree.pred.tab <- table(predicted = tree.pred, actual = val.dat$any_recid_2yr)
+dimnames(tree.pred.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
+tree.pred.tab
+tree.pred.errors = table(tree.pred,val.dat$any_recid_2yr)[2,1] +
+  table(tree.pred,val.dat$any_recid_2yr)[1,2]
 ```
 
-Based on the confusion matrix produced above with validation data, we see `r tree.pred.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.errors/nrow(val.dat), 2)`. 
+Based on the confusion matrix produced above with validation data, we see ``r tree.pred.errors`` errors out of ``r nrow(val.dat)`` observations, for a test error rate of ``r round(tree.pred.errors/nrow(val.dat), 2)``. 
 
 Next we see if there are any improvements that can be made by pruning it using cross-validation (with the function `cv.tree`). This process will help us avoid over-fitting.
 
@@ -909,7 +950,7 @@ confusions.tree #Kable this before submission
 tree.pred.prune.errors = confusions.tree[2,1] + confusions.tree[1,2]
 ```
 
-This final confusion matrix produced after pruning shows `r tree.pred.prune.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.prune.errors/nrow(val.dat), 2)`.  
+This final confusion matrix produced after pruning shows ``r tree.pred.prune.errors`` errors out of ``r nrow(val.dat)`` observations, for a test error rate of ``r round(tree.pred.prune.errors/nrow(val.dat), 2)``.  
 
 While this is not a terrible error rate in itself and the model is easily comprehensible, it is also extremely simplistic and fails to account for any nuance in particular cases. All defendants under age 23 are assumed to recidivate, regardless of (e.g.) their crime or prior records. All defendants with three or more priors are assumed to recidivate as well (reminiscent of the oft-criticized Three Strikes laws widespread in the United States). A 23-year old with two prior convictions for any crimes, however, is assumed unlikely to recidivate.  
 
@@ -938,20 +979,30 @@ tree.recid.rpart.train <- rpart(formula = update(fullmodel, ~ . - priors_log),
 #Output pretty picture
 tree.recid.rpart.train.pretty <- as.party(tree.recid.rpart.train)
 plot(tree.recid.rpart.train.pretty, pretty = 1)
-print(tree.recid.rpart.train.pretty)
+#Commented out the print() because it seemed redundant & less pretty than the picture -MH
+#print(tree.recid.rpart.train.pretty)
 #Predict and use the validation data
 tree.pred.rpart.val   <- predict(tree.recid.rpart.train, val.dat)
 #Create ROC curve
-roccurve.trpart<- roc(response = val.dat$two_year_recid, predictor = tree.pred.rpart.val[,2], levels = c(0, 1), direction = "<")
+roccurve.trpart<- roc(response = val.dat$two_year_recid,
+                      predictor = tree.pred.rpart.val[,2],
+                      levels = c(0, 1),
+                      direction = "<")
 #plot.roc(roccurve.trpart, print.auc = TRUE, print.thres = TRUE)
-plot(roccurve.trpart, col="green", lwd = 3, main="Tree - ROC Chart", print.auc = TRUE, print.thres = TRUE)
+plot(roccurve.trpart,
+     col="darkblue",
+     lwd = 3,
+     asp = 0,
+     main="Tree - ROC Chart",
+     print.auc = TRUE,
+     print.thres = "local maximas")
 tree.vals <- coords(roccurve.trpart, "best", ret=c("threshold", "specificity", "sensitivity"))
 #tree.vals$threshold
 #tree.vals$specificity
 #tree.vals$sensitivity
 ```
 
-From the ROC chart we do see that the specificity, sensitivity, and AUC values are not as high as they are for the logistic regression or LDA models. 
+From the ROC chart we do see that the AUC value is lower for the regression tree than for the logistic regression or LDA models. The regression tree allows for more nuance than the classification tree, with 
 <span style ="color: red;">**Could someone write a quick sentence about what information the tree is providing us here?**</span> 
 
 
@@ -1576,7 +1627,6 @@ rf.vio.error = (recid.vio.rf$confusion[2,1] + recid.vio.rf$confusion[1,2]) /nrow
 ```
 This matrix shows that the overall error rate for this random forest is ``r scales::percent(rf.vio.error, accuracy = 0.1)``.
 <span style ="color: red;"> The results below are very odd. Why does it show these vars are important, if they're not showing up in single decision tree? Just because trees are fickle (I forget the technical term)? </span>  
-
 ```{r}
 varImpPlot(recid.vio.rf, main="Variable Importance by Factor")
 ```
