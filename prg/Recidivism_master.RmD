@@ -206,7 +206,7 @@ ggplot(data = mutate(recid.all, priors_count = log2(priors_count + 1)),
   
 Based on this finding, we chose to add `log2(priors_count + 1)` as a variable called `priors_log`. We also added variables indicating whether the defendant had any cases on their juvenile record.
 
-```{r, message = FALSE}
+```{r}
 #Create new vars following Moses's work looking at what should go into the model
 recid.new <- mutate(recid.all, 
              any_recid_2yr        = recode_factor(two_year_recid, 
@@ -220,12 +220,18 @@ recid.new <- mutate(recid.all,
               juv_misd_bi       =  as.factor(case_when(juv_misd_count  == 0 ~ "No",
                                                       juv_misd_count   >  0 ~ "Yes")),   
               juv_other_bi      =  as.factor(case_when(juv_other_count == 0 ~ "No",
-                                                      juv_other_count  >  0 ~ "Yes"))
+                                                      juv_other_count  >  0 ~ "Yes")),
+              v_score_factor = factor(v_score_text != "Low", labels = c("LowScore","HighScore"))
                     
                     )
 #add numeric var for violent recidivism to use in regression tree
 recid.new$num.recidvio <- (as.numeric(recid.new$vio_recid_2yr) - 1) #different from is_violent_recid
 recid.new$num.recidany <- (as.numeric(recid.new$any_recid_2yr) - 1) #same as two_year_recid
+
+recid.new$compas.low <- (as.numeric(recid.new$score_factor)) #different from is_violent_recid
+recid.new$v.compas.low <- (as.numeric(recid.new$v_score_factor)) #same as two_year_recid
+
+
 #Using our professional judgement, we will keep only relevant variables in the dataset. Note that certain demographic variables are duplicates based on ProPublica's steps, and all r_ and vr_ variables would be unknown at the time of arrest.
 recid.new <- dplyr::select(recid.new, #dataset 
                           id, #Personal ID
@@ -235,7 +241,7 @@ recid.new <- dplyr::select(recid.new, #dataset
                           priors_count, priors_log, # other personal history
                           age, age_factor, race_factor, gender_factor, #demographic variables
                           length_of_stay, crime_factor, #crime vars
-                          v_decile_score, v_score_text, decile_score, score_text #COMPASS predictions (not to be included in our)
+                          v_decile_score, v_score_text, decile_score, score_text, score_factor, v_score_factor, compas.low, v.compas.low #COMPASS predictions (not to be included in our)
                           
                         )
 ```
@@ -317,39 +323,40 @@ ranking.vio <- ggplot(recid.vio, aes(x=v_decile_score, fill = v_score_text))+
 grid.arrange(ranking.all, ranking.vio, ncol = 2)
 ```
 
-#### **1e: Accuracy of Predictions by Demographic Group**  
-#### **1e: Accuracy of Predictions by Demographic Group**  
-The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
+#### **1e: Accuracy of COMPAS Predictions**  
+
+**Overall summary of COMPAS predictions**
+The confusion matrices below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
 ```{r, warning = FALSE, message = FALSE}
 
 #Create table
 confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
 dimnames(confusions.compas.any)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.compas.any, caption = "Confusion matrix for the COMPAS: any recidivism")
-compas.acc <- sum(diag(confusions.compas.any)) / sum(confusions.compas.any)
-compas.sens <- confusions.pred.val["Yes (Predicted)", "Yes"] / sum(confusions.pred.val[,"Yes"])
-compas.spec <- confusions.pred.val["No (Predicted)", "No"] / sum(confusions.pred.val[,"No"])
-kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
-             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
-             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
-      format = "markdown")  
+# compas.acc <- sum(diag(confusions.compas.any)) / sum(confusions.compas.any)
+# compas.sens <- confusions.compas.any["Yes (Predicted)", "Yes"] / sum(confusions.compas.any[,"Yes"])
+# compas.spec <- confusions.compas.any["No (Predicted)", "No"] / sum(confusions.compas.any[,"No"])
+# kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+#              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+#              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+#       format = "markdown", caption = "Success of the COMPAS instrument")  
 
 
 #Same for violent recidivism
 confusions.compas.vio = table(predicted = recid.new$v_score_factor, actual = recid.new$vio_recid_2yr)
 dimnames(confusions.compas.vio)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: vio recidivism")
-compas.acc <- sum(diag(confusions.compas.vio)) / sum(confusions.compas.vio)
-compas.sens <- confusions.pred.val["Yes (Predicted)", "Yes"] / sum(confusions.pred.val[,"Yes"])
-compas.spec <- confusions.pred.val["No (Predicted)", "No"] / sum(confusions.pred.val[,"No"])
-kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
-             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
-             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
-      format = "markdown")  
+kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: violent recidivism")
+# compas.acc <- sum(diag(confusions.compas.vio)) / sum(confusions.compas.vio)
+# compas.sens <- confusions.compas.vio["Yes (Predicted)", "Yes"] / sum(confusions.compas.vio[,"Yes"])
+# compas.spec <- confusions.compas.vio["No (Predicted)", "No"] / sum(confusions.compas.vio[,"No"])
+# kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+#              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+#              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+#       format = "markdown", caption = "Success of the COMPAS instrument")  
 
 ```
 
-
+**Demographic summary of COMPAS predictions**
 Data visualization by demographic group (below) showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
    - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing. African-Americans are arrested at higher rates for committing the same crimes as whites, so recididivism among white defendants is likely underreported relative to African-Americans.  
    - This includes no interactions between terms demographic characteristics (ex. race and gender)  
@@ -564,7 +571,7 @@ Unfortunately because of the density of the data the plot is a bit more challeng
 
 
 #### **2a: Data Mining Methods and Performance**
-<span style = "color: red;">Edit writing if time allows</span>
+<span style = "color: red;">Edit writing if time allows</span>  
 **Possible models**  
  
 Given our task of predicting binary outcomes, this is fundamentally a classification problem. We decided to pursue the following methods:  
@@ -817,6 +824,7 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
   
 **Model Validation**  
 As with logistic regression, we then re-ran the model using our validation data. The results from this analysis are below.  
+
 ```{r}
 #Validation Time!!
 lda.pred.val <- predict(object = recid.lda, newdata = val.dat, type = "response")
@@ -831,6 +839,7 @@ kable(tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.cv.spec, accuracy = 0.1)))
 ```
+
 ```{r}
 ## Drop an ROC like it's hot
 roc_lda <- roc(response = val.dat$any_recid_2yr,
@@ -892,6 +901,9 @@ qda.cv.spec <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
 kable(tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.cv.spec, accuracy = 0.1)))
+
+````
+
 ```{r}
 ## Drop that ROC like it's hot
 roc_qda <- roc(response = val.dat$any_recid_2yr,
@@ -907,9 +919,7 @@ plot(roc_qda,
      print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 #auc(roc_qda)
 ```
-The QDA model is less accurate (as measured by AUC)
-
-
+The QDA model is less accurate (as measured by AUC).  
 
 ***2a.4 Classification And Regression Tree***  
 
