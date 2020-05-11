@@ -318,7 +318,37 @@ grid.arrange(ranking.all, ranking.vio, ncol = 2)
 ```
 
 #### **1e: Accuracy of Predictions by Demographic Group**  
-<span "color = red";>**Add a confusion matrix for the COMPAS data**</span>  
+#### **1e: Accuracy of Predictions by Demographic Group**  
+The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
+```{r, warning = FALSE, message = FALSE}
+
+#Create table
+confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
+dimnames(confusions.compas.any)[[1]] = c("No (Predicted)","Yes (Predicted)")
+kable(confusions.compas.any, caption = "Confusion matrix for the COMPAS: any recidivism")
+compas.acc <- sum(diag(confusions.compas.any)) / sum(confusions.compas.any)
+compas.sens <- confusions.pred.val["Yes (Predicted)", "Yes"] / sum(confusions.pred.val[,"Yes"])
+compas.spec <- confusions.pred.val["No (Predicted)", "No"] / sum(confusions.pred.val[,"No"])
+kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+      format = "markdown")  
+
+
+#Same for violent recidivism
+confusions.compas.vio = table(predicted = recid.new$v_score_factor, actual = recid.new$vio_recid_2yr)
+dimnames(confusions.compas.vio)[[1]] = c("No (Predicted)","Yes (Predicted)")
+kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: vio recidivism")
+compas.acc <- sum(diag(confusions.compas.vio)) / sum(confusions.compas.vio)
+compas.sens <- confusions.pred.val["Yes (Predicted)", "Yes"] / sum(confusions.pred.val[,"Yes"])
+compas.spec <- confusions.pred.val["No (Predicted)", "No"] / sum(confusions.pred.val[,"No"])
+kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+      format = "markdown")  
+
+```
+
 
 Data visualization by demographic group (below) showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
    - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing. African-Americans are arrested at higher rates for committing the same crimes as whites, so recididivism among white defendants is likely underreported relative to African-Americans.  
