@@ -5,7 +5,6 @@ author: "Group 12: Moses Hetfield, Sormeh Yazdi, and Kayla Reiman"
 date: "May 2020"
 output: html_document
 ---
-   
 
 ```{r global_options, include=FALSE}
 #This code chunk sets up the HTML output to not show code by default.  
@@ -227,8 +226,6 @@ recid.new <- dplyr::select(recid.new, #dataset
                           v_decile_score, v_score_text, decile_score, score_text #COMPASS predictions (not to be included in our)
                           
                         )
-
-
 ```
 
 After removing redundant variables and those that would be unknown at the time of conviction, our dataset consisted of `r nrow(recid.new)` observations and the following variables: [KR note: delete this if we can't make it smaller or add labels easily]
@@ -442,18 +439,6 @@ train.dat <- subset(recid.new, subset = (is.train == 1))
 val.dat <- subset(recid.new, subset = (is.val == 1))
 test.dat <- subset(recid.new, subset = (is.test == 1))
 trainval.dat <- subset(recid.new, subset = (is.train == 1 | is.val == 1))
-
-
-##Added these so we can make ROC curves for regression trees
-#Numeric vars for recidivism - any
-train.dat$response.recidany <- (as.numeric(train.dat$any_recid_2yr) - 1)
-val.dat$response.recidvany <- (as.numeric(val.dat$any_recid_2yr) - 1)
-test.dat$response.recidany <- (as.numeric(test.dat$any_recid_2yr) - 1)
-
-#Numeric vars for recidivism - violent
-train.dat$response.recidvio <- (as.numeric(train.dat$vio_recid_2yr) - 1)
-val.dat$response.recidvio <- (as.numeric(val.dat$vio_recid_2yr) - 1)
-test.dat$response.recidvio <- (as.numeric(test.dat$vio_recid_2yr) - 1)
 ```
 
 An overview of datasets is below:   
@@ -472,8 +457,9 @@ An overview of datasets is below:
 **PCA for logistic regression**    
 
 - If we want to see if PCA will work well on this data, we look first to see if there are many correlated variables.
-- We use a pairs plot to see correlation:
+- We use a pairs plot to see correlation: 
 ```{r}
+#Modified to use training data, change if this was wrong -MH
 panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
 {
     usr <- par("usr"); on.exit(par(usr))
@@ -484,7 +470,7 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
     if(missing(cex.cor)) cex.cor <- 0.4/strwidth(txt)
     text(0.5, 0.5, txt, cex = pmax(1, cex.cor * r))
 }
-pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
+pairs(train.dat[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
 ```
 - Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. 
 - `priors_count` and `length_of_stay` along with `length_of_stay` and `crime_factor` seem to have the high correlations relative to the others (0.11)
@@ -496,40 +482,31 @@ pairs(recid.all[,c("crime_factor", "age_factor", "race_factor", "gender_factor",
 - `priors_count` and `juv_misd_count` have high correlations relative to the other pairs (0.27)
 - Since none of these pairs are extremely correlated, the PCA method of determining which features capture the best variation in the data. 
 
-We might still want to attempt PCA
-- We first want to normalize the data in order to standaradize each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.
-- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way
+We might still want to attempt PCA  
+- We first want to normalize the data by standardizing each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.  
+- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way  
 ```{r}
-recid.new.sub <- recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
+recid.new.sub <- recid.new %>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
 recid.new.sub <- na.omit(recid.new.sub)
 recid.new.scaled <- scale(recid.new.sub) # This normalizes the data
 recid.pca <- princomp(recid.new.scaled) # Perform PCA
 recid.pca$loadings = -recid.pca$loadings
 recid.pca$scores = -recid.pca$scores
-biplot(recid.pca, scale = 0) # construct biplot
+#I changed the colors to be ugly but more legible
+biplot(recid.pca,
+       scale = 0,
+       cex = c(0.8, 1),
+       col=c("darkorange", "dodgerblue4")) # construct biplot
 ## Add grid lines
 abline(v=0, lty=2, col="grey50")
 abline(h=0, lty=2, col="grey50")
 ```
 
-We started with 6 dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each of the points is labeled in terms of the individual in the system that it corresponds to and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, and it also has a z1 value and z2 value, and that is how it's being plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. The vectors for each variable are aligned with positive component 1 values (except for `age`), meaning that the new component 1 axis reflects counts of misdemeanors and felonies, and length of stay in a prison/jail, which is related to those. The Component 2 axis therefore reflects age, showing that individuals with lower age are ones with higher recidivism rates after 2 years, and the older you are, the lower your recidivism rate after two years. 
+We started with six-dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each numbered point represents an individual and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, which determine the z1 and z2 values by which it is plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. 
+While z1 and z2 are abstractions without easily interpretable meaning, they allow us to sort related variables into groups. `Priors_log` appears to be closely related to `juv_fel_count` and `length_of_stay`. Including all three of these in a model may not add much value compared with including just one.  
+`Age` is quite independent from the other variables, meaning that it has the potential to add value to a model even if the others are all already present. `Priors_log` and `juv_other_count` are orthogonal, making them a promising combination for our models.  
 
- When looking at this plot, we see that individuals plotted in the same direction/location as the vectors are the ones that are highly identified by the vector factors. For example, individual 5130 will have a high `juv_other_count` (second component variation), but will have a lower `length_of_stay` (first component variation) than individual 1526.  Furthermore, this process has now ensured that the 6 columns are uncorrelated with one another.
- 
-The plot allows us to see that certainly `age` is highly uncorrelated with all the other variables, `juv_other_count` and `juv_misd_count` are more correlated with each other, while `juv_fel_count`, `length_of_stay` and `priors_log` can be considered another correlated group.
-
-Unfortunately because of the density of the data the plot is a bit more challenging to read, but we do find it useful to highlight correlations that were otherwise less obvious in the pairs plot.
- 
-**JUST STILL UNSURE IF THIS PCA VERSION IS BETTER THAN THE ONE ABOVE....ALSO MIGHT NEED TO CLARIFY UNDERSTANDING OF PCA MERGING VARIABLES A BIT BETTER. WILL COME BACK TO THIS ON SUNDAY**
-Initial PCA work showed the following relationship between numeric predictor variables.
-```{r}
-#PCA
-#This will require some analysis from someone who understands it??
-recid.new%>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>%
-  as.data.frame() %>%
-  prcomp(scale = TRUE) %>%
-  biplot(scale = 0, cex = c(0.1, 1))
-```
+Unfortunately because of the density of the data the plot is a bit more challenging to read, but it does help highlight correlations that were less visible in the pairs plot.
 
 
 #### **2a: Data Mining Methods and Performance**
@@ -637,7 +614,6 @@ confusion.glm = ifelse(train.pred.logit > 0.5, "1", "0")
 confusions.pred.train = table(confusion.glm, train.dat$any_recid_2yr)
 dimnames(confusions.pred.train)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.pred.train, caption = "Logistic regression: confusion matrix using training data")
-
 kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2), col.names = "Misclassification Rate (with train.dat):")
 ```
 
@@ -646,7 +622,6 @@ Training error (plotted above) tends to underestimate the true error rate when t
 
 ```{r, message = FALSE}
 glm.logit.predict.val  = predict(glm.logit, val.dat, type="response")
-
 ## ROC plot
 roccurve.logit <- roc(response = val.dat$any_recid_2yr, predictor = glm.logit.predict.val)
 plot.roc(roccurve.logit, print.auc = TRUE, print.thres = TRUE)
@@ -681,13 +656,11 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
              Sensitivity = scales::percent(logit.sens, accuracy = 0.1),
              Specificity = scales::percent(logit.spec, accuracy = 0.1)),
       format = "markdown")
-
 #Changing threshold for next iteration
 logit.threshold <- 0.6
 ```
 
 >>>>>>> master
-
 **<span style = "color: red;">These were mixing up sensitivity and specificity due to formatting errors, so I fixed these. I also made `logit.threshold` a variable so it's easy to modify the threshold in our code (e.g. for the violent recid). -MH</span>**  
 With a **``r scales::percent(logit.threshold)``** threshold we find the following results:
 
@@ -695,7 +668,6 @@ With a **``r scales::percent(logit.threshold)``** threshold we find the followin
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
 confusion.glm = ifelse(glm.logit.predict.val > logit.threshold, "1", "0")
 confusions.pred.val = table(confusion.glm, val.dat$any_recid_2yr)
-
 dimnames(confusions.pred.val)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.pred.val,
       caption = paste("Logistic regression: confusion matrix using validation data:",
@@ -712,7 +684,6 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
              Sensitivity = scales::percent(logit.sens, accuracy = 0.1),
              Specificity = scales::percent(logit.spec, accuracy = 0.1)),
       format = "markdown")  
-
 #Changing threshold for next iteration
 logit.threshold <- 0.7
 ```
@@ -736,7 +707,6 @@ logit.acc <- sum(diag(confusions.pred.val)) / sum(confusions.pred.val)
 logit.sens <- confusions.pred.val["Yes (Predicted)", "Yes"] / sum(confusions.pred.val[,"Yes"])
 #paste("Specificity Rate:")
 logit.spec <- confusions.pred.val["No (Predicted)", "No"] / sum(confusions.pred.val[,"No"])
-
 kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
              Sensitivity = scales::percent(logit.sens, accuracy = 0.1),
              Specificity = scales::percent(logit.spec, accuracy = 0.1)),
@@ -781,7 +751,6 @@ Just like for logistic regression, we then re-ran the model using our validation
 ```{r}
 #Validation Time!!
 lda.pred.val <- predict(object = recid.lda, val.dat, type = "response")
-
 lda.cv.tab = table(predicted = lda.pred.val$class,
                    actual = val.dat$any_recid_2yr)
 lda.cv.tab
@@ -866,11 +835,9 @@ reg.tree.recid <- tree(formula = (as.numeric(any_recid_2yr) - 1) ~
                          length_of_stay,
                        data = train.dat)
 summary.reg.tree.recid <- summary(reg.tree.recid)
-
 #INSERT TEXT HERE
 plot(reg.tree.recid)
 text(reg.tree.recid, pretty = 0)
-
 ```
 
 Using the training dataset (with `r nrow(train.dat)` rows), we find the that there is a misclassification rate of `r round(summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], 2)`. The initial tree predicting whether a person will recidivate within two years is shown below.  
@@ -911,15 +878,11 @@ plot(prune.recid)
 text(prune.recid,pretty=0)
 #Again, predict and use the validation data
 tree.pred.prune=predict(prune.recid, val.dat, type="class")
-
 table(tree.pred.prune,val.dat$any_recid_2yr)
 tree.pred.prune.errors = table(tree.pred.prune,val.dat$any_recid_2yr)[2,1] + table(tree.pred.prune,val.dat$any_recid_2yr)[1,2]
-
-
 ## ROC plot -- cannot create this b/c all yes/no variables -- nothing quant.
 # roccurve.tree <- roc(response = val.dat$any_recid_2yr, predictor = tree.pred.prune)
 # plot.roc(roccurve.logit, print.auc = TRUE, print.thres = TRUE)
-
 ```
 This final confusion matrix produced after pruning shows `r tree.pred.prune.errors` errors out of `r nrow(val.dat)` observations, for a test error rate of `r round(tree.pred.prune.errors/nrow(val.dat), 2)`.  
 
@@ -945,8 +908,6 @@ kable(tibble(Accuracy = scales::percent(tree.acc, accuracy = 0.1),
              Sensitivity = scales::percent(tree.sens, accuracy = 0.1),
              Specificity = scales::percent(tree.spec, accuracy = 0.1)),
       format = "markdown")
-
-
 ```
 
 **Regression trees**  
@@ -961,13 +922,9 @@ plot(tree.recid.rpart.train.pretty, pretty = 1)
 print(tree.recid.rpart.train.pretty)
 #Predict and use the validation data
 tree.pred.rpart.val   <- predict(tree.recid.rpart.train, val.dat)
-
 #Create ROC curve
 roccurve.rpart<- roc(response = val.dat$two_year_recid, predictor = tree.pred.rpart.val[,2], levels = c(0, 1), direction = "<")
 plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
-
-
-
 ```
 
 
@@ -1011,12 +968,9 @@ recid.rf =randomForest(formula = fullmodel,
                        ,importance=TRUE #keeping this from book
                        )
 rf.predict <- as.data.frame(predict(recid.rf, val.dat, type = "prob"))
-
-
 #Adapting code from other parts of the program
 roccurve.rpart<- roc(response = val.dat$two_year_recid, predictor = rf.predict$Yes)
 plot.roc(roccurve.rpart, print.auc = TRUE, print.thres = TRUE)
-
 ```
 We then decided to pursue [which models should we use?]
 
