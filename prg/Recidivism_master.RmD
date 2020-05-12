@@ -1771,9 +1771,40 @@ FN.vio.AfAm <-  confusions.pred.test.vio.AfAm["No (Predicted)", "Yes"] / sum(con
 
 ### **2d2: Gender**  
 
+
 ``` {r}
+
+#Subset datasets by gender
+female.dat <- recid.new[test.dat$gender_factor == "Female",]
+male.dat <- recid.new[test.dat$gender_factor == "Male",]
 female.test.dat <- test.dat[test.dat$gender_factor == "Female",]
 male.test.dat <- test.dat[test.dat$gender_factor == "Male",]
+
+#COMPAS for gender
+confusions.compas.any.female = table(predicted = female.dat$score_factor, actual = female.dat$any_recid_2yr)
+dimnames(confusions.compas.any.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.female <- confusions.compas.any.female["Yes (Predicted)", "No"] / sum(confusions.compas.any.female[,"No"])
+FN.compas.any.female <-  confusions.compas.any.female["No (Predicted)", "Yes"] / sum(confusions.compas.any.female[,"Yes"])
+
+confusions.compas.any.male = table(predicted = male.dat$score_factor, actual = male.dat$any_recid_2yr)
+dimnames(confusions.compas.any.male)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.male <- confusions.compas.any.male["Yes (Predicted)", "No"] / sum(confusions.compas.any.male[,"No"])
+FN.compas.any.male <-  confusions.compas.any.male["No (Predicted)", "Yes"] / sum(confusions.compas.any.male[,"Yes"])
+
+
+#COMPAS FOR GENDER - VIO
+confusions.compas.vio.female = table(predicted = female.dat$v_score_factor, actual = female.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.female <- confusions.compas.vio.female["Yes (Predicted)", "No"] / sum(confusions.compas.vio.female[,"No"])
+FN.compas.vio.female <-  confusions.compas.vio.female["No (Predicted)", "Yes"] / sum(confusions.compas.vio.female[,"Yes"])
+
+confusions.compas.vio.male = table(predicted = male.dat$v_score_factor, actual = male.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.male)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.male <- confusions.compas.vio.male["Yes (Predicted)", "No"] / sum(confusions.compas.vio.male[,"No"])
+FN.compas.vio.male <-  confusions.compas.vio.male["No (Predicted)", "Yes"] / sum(confusions.compas.vio.male[,"Yes"])
+
+
+##Our RAI using test data
 ##female PEOPLE VERSION OF FINAL TEST - any 
 final.predict.test.any.female = predict(glm.logit, female.test.dat, type="response") 
 final.predict.test.any.female = ifelse(final.predict.test.any.female > 0.6, "1", "0") #threshold of 0.6
@@ -1790,6 +1821,24 @@ dimnames(confusions.pred.test.any.male)[[1]] = c("No (Predicted)","Yes (Predicte
 FP.any.male <- confusions.pred.test.any.male["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.male[,"No"])
 FN.any.male <-  confusions.pred.test.any.male["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.male[,"Yes"])
 ```
+
+**Original tool**  
+
+ProPublica didn't analyze the COMPAS for differences by gender, so we added this analysis. It turns out that the COMPAS was remarkably fair across gender lines.  Ours was not.
+
+
+| COMPAS Finding: Any Recidivism               |           Female | Male | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False Positive)      |`r scales::percent(FP.compas.any.female, 0.1)`  | `r scales::percent(FP.compas.any.male, 0.1)` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.any.female, 0.1)`  | `r scales::percent(FN.compas.any.male, 0.1)` |
+
+| COMPAS Finding: Violent Recidivism               |           Female | Male | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False Positive)      |`r scales::percent(FP.compas.vio.female, 0.1)`  | `r scales::percent(FP.compas.vio.male, 0.1)` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.vio.female, 0.1)`  | `r scales::percent(FN.compas.vio.male, 0.1)` |
+
+
+**Our tool**  
 
 From the Gender table below we see that our model strongly favors giving female individuals a lower recidivism risk rating. The False Negative rate of `r scales::percent(FN.any.female, 0.1)` is especially telling, since this implies that for every hundred recidivating women, our model says roughly 86 of them are not likely to recidivate. This rate is double the False Negative rate for males. 
 
@@ -1827,6 +1876,67 @@ FN.vio.male <-  confusions.pred.test.vio.male["No (Predicted)", "Yes"] / sum(con
 | Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.vio.female, 0.1)`  | `r scales::percent(FN.vio.male, 0.1)` |
 
 ### **2d3: Age**  
+
+**Original tool**  
+
+We also test the COMPAS's bias on the basis of age, as shown in the following tables. Similar to race, the COMPAS was likely to misclassify people in different directions based on age. Specifically, young people were much more likely to be labeled high-risk without re-offending (false positive), while older people were more likely to be labeled low-risk while re-offending (false negatives).
+
+``` {r}
+#SUBSET BY AGE
+age1.dat <- recid.new[recid.new$age_factor == "Less than 25",]
+age2.dat <- recid.new[recid.new$age_factor == "25 - 45",]
+age3.dat <- recid.new[recid.new$age_factor == "Greater than 45",]
+
+#COMPAS for age1
+confusions.compas.any.age1= table(predicted = age1.dat$score_factor, actual = age1.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age1)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age1 <- confusions.compas.any.age1["Yes (Predicted)", "No"] / sum(confusions.compas.any.age1[,"No"])
+FN.compas.any.age1 <-  confusions.compas.any.age1["No (Predicted)", "Yes"] / sum(confusions.compas.any.age1[,"Yes"])
+
+confusions.compas.vio.age1 = table(predicted = age1.dat$v_score_factor, actual = age1.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age1)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age1 <- confusions.compas.vio.age1["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age1[,"No"])
+FN.compas.vio.age1 <-  confusions.compas.vio.age1["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age1[,"Yes"])
+
+
+#COMPAS for age2
+confusions.compas.any.age2= table(predicted = age2.dat$score_factor, actual = age2.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age2)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age2 <- confusions.compas.any.age2["Yes (Predicted)", "No"] / sum(confusions.compas.any.age2[,"No"])
+FN.compas.any.age2 <-  confusions.compas.any.age2["No (Predicted)", "Yes"] / sum(confusions.compas.any.age2[,"Yes"])
+
+confusions.compas.vio.age2 = table(predicted = age2.dat$v_score_factor, actual = age2.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age2)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age2 <- confusions.compas.vio.age2["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age2[,"No"])
+FN.compas.vio.age2 <-  confusions.compas.vio.age2["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age2[,"Yes"])
+
+
+#COMPAS for age3
+confusions.compas.any.age3= table(predicted = age3.dat$score_factor, actual = age3.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age3)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age3 <- confusions.compas.any.age3["Yes (Predicted)", "No"] / sum(confusions.compas.any.age3[,"No"])
+FN.compas.any.age3 <-  confusions.compas.any.age3["No (Predicted)", "Yes"] / sum(confusions.compas.any.age3[,"Yes"])
+
+confusions.compas.vio.age3 = table(predicted = age3.dat$v_score_factor, actual = age3.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age3)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age3 <- confusions.compas.vio.age3["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age3[,"No"])
+FN.compas.vio.age3 <-  confusions.compas.vio.age3["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age3[,"Yes"])
+
+
+```
+
+| COMPAS: Any Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
+|------------------------------------------------------------------|-----------------|------------------|--------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r scales::percent(FP.compas.any.age1, 0.1)`  | `r scales::percent(FP.compas.any.age2, 0.1)` | `r scales::percent(FP.compas.any.age3, 0.1)`|
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.any.age1, 0.1)`  | `r scales::percent(FN.compas.any.age2, 0.1)` | `r scales::percent(FN.compas.any.age3, 0.1)`|
+
+
+| COMPAS: Violent Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
+|------------------------------------------------------------------|-----------------|------------------|--------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r scales::percent(FP.compas.vio.age1, 0.1)`  | `r scales::percent(FP.compas.vio.age2, 0.1)` | `r scales::percent(FP.compas.vio.age3, 0.1)`|
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.vio.age1, 0.1)`  | `r scales::percent(FN.compas.vio.age2, 0.1)` | `r scales::percent(FN.compas.vio.age3, 0.1)`|
+
+**Our tool**  
 
 Based on our analysis focusing on age, we find that our model also seems to assume that if you are in the age group of "Greater than 45," then you are at a lower risk of recidivating than the actual data shows. Furthermore, the younger an indivual is, the more likely our model is to give that individual a higher risk rating. While this is in parallel with what we found in our analysis of the data during our model building process (see the PCA plot), our model is biased against younger individuals.
 
@@ -1895,7 +2005,6 @@ FN.vio.age3 <-  confusions.pred.test.vio.age3["No (Predicted)", "Yes"] / sum(con
 |------------------------------------------------------------------|-----------------|------------------|--------------|
 | Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r scales::percent(FP.vio.age1, 0.1)`  | `r scales::percent(FP.vio.age2, 0.1)` | `r scales::percent(FP.vio.age3, 0.1)`|
 | Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.vio.age1, 0.1)`  | `r scales::percent(FN.vio.age2, 0.1)` | `r scales::percent(FN.vio.age3, 0.1)`|
-
 
 
 ``` {r}
