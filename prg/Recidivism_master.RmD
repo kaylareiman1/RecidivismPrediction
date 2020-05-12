@@ -1496,7 +1496,6 @@ compas.spec.vio <- confusions.compas.vio["No (Predicted)", "No"] / sum(confusion
   
 **Summary Statistics for the best version of each data mining method**    
 
-Unlike modeling whether a picture is of a cat or a dog, which has ground truth, predicting whether an individual will recidivate is inherently random. For this reason, accuracy is not the best measure of how good our model is, and logistic regression (italicized in the chart below) appears to be the best model for this type of data.  
 This table (and the table below for violent recidivism) uses the thresholds we discussed in our earlier analysis.
 
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
@@ -1508,7 +1507,7 @@ This table (and the table below for violent recidivism) uses the thresholds we d
 | <span style = "color: #7768AE">**Decision Tree** </span> |<span style = "color: #7768AE">`r round(tree.vals$accuracy, 1)`% </span>|<span style = "color: #7768AE"> `r round(tree.vals$sensitivity, 1)`% </span>|<span style = "color: #7768AE"> `r round(tree.vals$specificity, 1)`% </span>|  
 | <span style = "color: #3BB273;">**Random Forest (RF)** </span> |<span style = "color: #3BB273;">`r round(rf.vals$accuracy, 1)`% </span>|<span style = "color: #3BB273;"> `r round(rf.vals$sensitivity, 1)`% </span>|<span style = "color: #3BB273;"> `r round(rf.vals$specificity, 1)`% </span>|  
   
-Another helpful illustration is a side-by-side comparison of the models' ROC curves:  
+Another helpful illustration is a side-by-side comparison of the models' ROC curves. LDA and logistic regression have very similar performance, and both models dominate the others, meaning that they outperform them at every threshold.  
 
 ```{r}
 ### Comparing ROC charts
@@ -1551,6 +1550,8 @@ legend(x = 42,
 | <span style = "color: #7768AE;">**Decision Tree** </span>  |<span style = "color: #7768AE;">`r round(tree.vals.vio$accuracy, 1)`%</span> |<span style = "color: #7768AE;">`r round(tree.vals.vio$sensitivity, 1)`% </span>|<span style = "color: #7768AE;">`r round(tree.vals.vio$specificity, 1)`%</span> |  
 | <span style = "color: #3BB273;">**Random Forest (RF)**  </span> |<span style = "color: #3BB273;">`r round(rf.vals.vio$accuracy, 1)`%</span> |<span style = "color: #3BB273;"> `r round(rf.vals.vio$sensitivity, 1)`%</span> |<span style = "color: #3BB273;"> `r round(rf.vals.vio$specificity, 1)`%</span> |  
   
+For violent recidivism, QDA performs best for thresholds that lead to low sensitivity and high specificity. However, sensitivity is important for preventing violent crime, so we chose logistic regression again, which performs better on the right half of the graph.
+
 ```{r}
 ### Comparing Violent ROC charts
 #Logistic ROC
@@ -1622,7 +1623,10 @@ kable(tibble(Accuracy = scales::percent(final.acc.vio, 0.1),
              Specificity = scales::percent(final.spec.vio, 0.1)))
 ```
 
-<span style ="color: red;"> Add text here about over-fitting </span>
+There was almost no drop in accuracy when we switched to using test data, suggesting that over-fitting did not occur.
+
+**Comparison of predictors for all recidivism vs. violent recidivism**
+While the predictors chosen by our Random Forests and regsubsets analyses were similar for all recidivism and violent recidivism, our final logistic model for violent recidivism included race based on the regsubsets analysis.
 
 ## **2d: Demographic analysis of our model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. Notably, all of our demographic analysis below uses the $test$ data, which has a fairly low sample size.
@@ -1670,7 +1674,6 @@ FN.compas.vio.AfAm <-  confusions.compas.vio.AfAm["No (Predicted)", "Yes"] / sum
 | Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.vio.white, 0.1)`  | `r scales::percent(FN.compas.vio.AfAm, 0.1)` |
 
 **Our tool**  
-The table below shows the number of African-American and white people in our test data.
 
 We see that, while we were able to roughly halve the False Positive rate for both Caucasian and African American groups, our model is still biased against the African American group. Both their False Postive rate and their False Negative rate are higher and lower, respectively, than that of the Caucasian group. This means that our model is still more likely to incorrectly predict that African American individuals will recidivate than that white ones will. 
 
@@ -2050,36 +2053,18 @@ Re-visiting the charts above, our accuracy rate is higher than the COMPAS for an
 
 It is more than an unfortunate coincidence that both the COMPAS model and our model have a strong racial bias. Crime data in the United States, including recidivism data, is highly biased because police are more likely to arrest African Americans than white people for the same crimes. Any model based on American crime data, no matter how internally sound, will reflect the biased data from which it was built.
 
-<span style ="color: red;"> If somewhere someone can write what the most important predictors were for vio and how they compare to any recidivism!! I know this is somewhere but it's a prompt question and I forget where and my brain is now tired.<span>
-
 #### **3a.3: Are there systematic differences between our classifications and those of COMPAS?**  
 
-As stated earlier, there are similarities between our classifications and those of COMPAS in regards to the biases of how our model classifies individuals. However, since we also favored Specificity in our model for Any Recidivism data, our logistic model for Any Recidivism does optimize towards having a higher Specificity rate. This is shown through our models having a lower False Positive rate on average than the COMPAS model as shown in sections 2c and 2d <span style ="color: red;">(If anyone has time/feels the need, we could link to the sections somehow...not sure how to do that)</span>. 
+As stated earlier, there are similarities between our classifications and those of COMPAS in regards to the biases of how our model classifies individuals. However, since we also favored Specificity in our model for Any Recidivism data, our logistic model for Any Recidivism does have a higher Specificity rate. As shown in section 2d, our models have lower false positive rates than the COMPAS model.
 
-For Violent Recidivism data, our model systematically optimizes towards results that produce higher Sensitivity rates than the COMPAS model as well. This is shown in sections 2c and 2d as well in our model resulting in lower False Negative rates (and as a result higher False Positive rates) for the violent recidivism data as compared to the model for the any recidivism data.
-<span style ="color: red;"> This is not true for the Age analysis so someone please check me on this!!<span>
-
-<span style ="color: red;"> I just remembered, but forgot before, did we want to mention the not-including/we ended up including race_factor in our model and how this doesn't really change much? I know we mentioned it somewhere in part 2, but maybe it could go in 3a.3?<span>
+One major systematic difference between our classifications and those of COMPAS is that while both models are racist and ageist, ours has the unfortunate distinction of also being sexist.
 
 ### **3b: Reflections on risk assessment tools**   
-**update needed: create this whole section after finishing EVERYTHING ELSE**  
 
-The problem of prediciting recidivism rates is inherently random. We know that it is random because it is very possible to find two individuals with the exact same statistics who end up with opposite outcomes (one will recidivate within two years, and the other will not). This means that the data is extremely challenging to make predictions with using today's Data Mining tools, especially provided the available data, which itself contains racist/sexist/ageist biases. 
+We show in this report that with fewer variables, data mining tools available to the average student and a limited amount of time, we were able to replicate and adjust a model that was manufactured for government use. While it is important for models to be tested, is it also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. We do believe that there is value to this research, but the research should go through extensive trials before it is rolled out for government/private use.  
 
-<span style ="color: red;"> This is a little biased/very opinionated, so idk if this should be left here:<span>
-We show in this report that with fewer variables, data mining tools available to the average student and a limited amount of time, we were able to replicate and adjust a model that was  manufactured for government use. While it is important for models to be tested, is it also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. We do believe that there is value to this research, but the research should go through extensive trials before it is rolled out for government/private use. <span style ="color: red;"> It's possible I'm misremembering what they wrote in ProPublica, but I thought several states were using combined assessments with these models and judges.<span>
+As students at Carnegie Mellon, we are concerned about the use of RAIs like the COMPAS in our community of Pittsburgh, Pennsylvania. The PittCyber task force has announced via (community meetings)[https://www.wesa.fm/post/residents-raise-concerns-about-bias-countys-automated-decision-making-tools#stream/0] that a recidivism RAI is being used here, but there is very little public information available. [Predictive policing](https://www.nbcnews.com/mach/science/how-science-helping-stop-crime-it-occurs-ncna805176) is also being used in Pittsburgh.
 
-<span style ="color: red;"> Obviously this needs to be completed :) I tried to explain inherent randomness of the problem, but if someone has a better explanation, please provide! Scrap whatever you think is best to scrap. I will not be offended. -- I think of course it is possible for someone to make the statement that recidivism can be predicted, but I really do think that we often find people who have the same stats but who have different outcomes, and I think explaining it is random is further proof that this data should not be predicted with today's machine learning, ESPECIALLY since the data it's learning on is inherently biased! You never know, future methods might be able to account for biases. This is obviously not to say that people who work on this should stop working on this. I think it is still a problem worth working on, but it should not, at its current capacity, be used to make decisions that affect people's lives. Also since current model is based on biases, then this could re-enforce judges' biases when they see the prediction model agree with them...idk. THOUGHTS.<span>
-
-<span style ="color: red;"> I just remembered, but forgot before, did we want to mention the not-including/we ended up including race_factor in our model and how this doesn't really change much? I know we mentioned it somewhere in part 2, but maybe it could go in 3a.3?<span>
-
-- We know that arrest data is biased based on where police patrol, so even a model that's interally sound is still based on biased data.[maybe cite Patrick Ball]  
-- Pittsburgh has a pre-trial risk assessment tool
-- Models can be racist without using race as an input...[maybe add more about our research]
-- Black box vs. accessibility  
-Perhaps cite some articles here, like the two that ProPublica cited, or something more recent
-[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
-[Article on Risk, Race, and Recidivism](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339)
 
 ## **References and Other Links**  
 
@@ -2095,8 +2080,6 @@ Perhaps cite some articles here, like the two that ProPublica cited, or somethin
 [Project description on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4443203)  
 
 ## **Appendix: Data Cleaning**  
-
-<span style ="color: red;"> Fix me, please!! Do we want to be showing the code here?<span>
 
 In order to establish racial bias in how COMPAS scores predicted future recidivism, ProPublica analysts ran the model below:  
 `glm(formula = score_factor ~ gender_factor + age_factor + race_factor + priors_count + crime_factor + two_year_recid, family = "binomial", data = df)`  
