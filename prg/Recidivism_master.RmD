@@ -52,7 +52,7 @@ roccurve.rpart.col <- "#3BB273"
 
 # **Introduction**  
 #### **Background**    
-In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inaccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their  published table replicated below:      
+In 2016, ProPublica published a [story](https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing) on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a [2009 validation study](http://www.northpointeinc.com/files/publications/Criminal-Justice-Behavior-COMPAS.pdf) showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inaccuracies were in opposite directions for the two groups. This racial bias of the tool is reflected in their  published table replicated below:      
   
 | Type of error                              |           White | African American | 
 |--------------------------------------------|-----------------|------------------|
@@ -60,7 +60,7 @@ In 2016, ProPublica published a [story](https://www.propublica.org/article/machi
 | Labeled Lower Risk, Yet Did Re-Offend      |            47.7%|            28.0% |
 
 #### **Additional information on the COMPAS**    
-The COMPAS is widely used across states. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved arguably function as proxies for poverty.  
+ProPublica authors explained that the COMPAS is widely used across states. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved arguably function as proxies for poverty.  
    
 #### **Goal** 
 Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
@@ -320,7 +320,7 @@ This confusion matrix shows an accuracy rate of ``r scales::percent(sum(diag(con
 
 **Demographic summary of COMPAS predictions**
 Data visualization by demographic group (below) showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
-   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing. African-Americans are arrested at higher rates for committing the same crimes as whites, so recididivism among white defendants is likely underreported relative to African-Americans.  
+   - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing. African-Americans are [arrested at higher rates](https://www.sentencingproject.org/publications/un-report-on-racial-disparities/) for committing the same crimes as whites, so recididivism among white defendants is likely underreported relative to African-Americans. Additional information on this phenomenon is available in Michelle Alexander's book, [The New Jim Crow](https://newjimcrow.com/).  
    - This includes no interactions between terms demographic characteristics (ex. race and gender)  
    - As ProPublica pointed out, these charts do not differentiate between false positives and false negatives.   
    
@@ -628,7 +628,7 @@ We then evaluated our classifier's accuracy, along with both specificity and sen
     - **Specificity**: This is the percentage of non-recidivators who are correctly classified by the model. High specificity is important because it reduces the risk of incarcerating people who pose no risk to society. We consider specificity the most important metric for our all-recidivism (as opposed to violent recidivism) model because we believe false positives (which lead to wrongful incarceration) are more costly than false negatives (which lead to wrongful release).  
    - **Sensitivity**: This is the percentage of recidivators who are correctly classified by the model. A highly sensitive model would correctly predict most individuals who will recidivate within two years. We consider sensitivity a more important metric for our violent recidivism model than for the full recidivism model.  
 
-Accuracy, specificity, and sensitivity can be calculated using the confusion matrix below.  
+Accuracy, specificity, and sensitivity can be calculated using the training confusion matrix below, though we will explore these measures further with a confusion matrix using $validation data$ in the next section.  
 ``` {r}
 #Predicted values
 train.pred.logit <- predict(glm.logit, type = "response")
@@ -1408,7 +1408,7 @@ plot.roc(roccurve.rpart.vio,
          print.thres = TRUE,
          print.thres.pattern = "%.3f\n(%.1f%%,\n%.1f%%)",
          asp = 0,
-         col = roccurve.rpart.col)
+         col = roccurve.trpart.col)
 tree.vals.vio <- coords(roccurve.rpart.vio, "best", ret = c("threshold", "specificity", "sensitivity", "accuracy"))
 ```
 
@@ -1609,7 +1609,7 @@ kable(tibble(Accuracy = scales::percent(final.acc.vio, 0.1),
 There was almost no drop in accuracy when we switched to using test data, suggesting that over-fitting did not occur.
 
 **Comparison of predictors for all recidivism vs. violent recidivism**
-While the predictors chosen by our Random Forests and regsubsets analyses were similar for all recidivism and violent recidivism, our final logistic model for violent recidivism included race based on the regsubsets analysis.
+While the predictors chosen by our Random Forests and regsubsets analyses were similar for all recidivism and violent recidivism, our final logistic model for violent recidivism included race based on the regsubsets analysis. 
 
 ## **2d: Demographic analysis of our model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. Notably, all of our demographic analysis below uses the $test$ data, which has a fairly low sample size.
@@ -2033,7 +2033,9 @@ Re-visiting the charts above, our accuracy rate is higher than the COMPAS for an
 
 #### **3a.2: Do our RAIs produce similar classifications to COMPAS?**  
 
-It is more than an unfortunate coincidence that both the COMPAS model and our model have a strong racial bias. Crime data in the United States, including recidivism data, is highly biased because police are more likely to arrest African Americans than white people for the same crimes. Any model based on American crime data, no matter how internally sound, will reflect the biased data from which it was built.
+As shown above, our accuracy rates are similar for any recidivism and lower for violent recidivism. In the "any recidivism" model, we have adjusted the thresholds so that our classifications are less likely to result in false positives.   
+
+It is more than an unfortunate coincidence that both the COMPAS model and our model have a strong racial bias. Notably, this is not even taking into account racial bias in how often people who committed crimes were caught. Even if we were to perfectly predict arrests, any model based on American crime data, no matter how internally sound, will reflect the biased data from which it was built. Additional referenes about bias in policing are available in the links at the bottom of this document. 
 
 #### **3a.3: Are there systematic differences between our classifications and those of COMPAS?**  
 
@@ -2043,23 +2045,25 @@ One major systematic difference between our classifications and those of COMPAS 
 
 ### **3b: Reflections on risk assessment tools**   
 
-We show in this report that with fewer variables, data mining tools available to the average student and a limited amount of time, we were able to replicate and adjust a model that was manufactured for government use. While it is important for models to be tested, is it also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. We do believe that there is value to this research, but the research should go through extensive trials before it is rolled out for government/private use.  
+We show in this report that with fewer variables, data mining tools available to the average student, and a limited amount of time, we were able to replicate the accuracy rate of a model already in use by the government, along with providing adjustments. While it is important for models to be validated, is it also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. If policy-makers are determined to use data mining for risk assessment, then tools such as the COMPAS should be tested not just for overall accuracy but for discrimination before they are used.  
 
-As students at Carnegie Mellon, we are concerned about the use of RAIs like the COMPAS in our community of Pittsburgh, Pennsylvania. The PittCyber task force has announced via (community meetings)[https://www.wesa.fm/post/residents-raise-concerns-about-bias-countys-automated-decision-making-tools#stream/0] that a recidivism RAI is being used here, but there is very little public information available. [Predictive policing](https://www.nbcnews.com/mach/science/how-science-helping-stop-crime-it-occurs-ncna805176) is also being used in Pittsburgh.
+As students at Carnegie Mellon, we are concerned about the use of RAIs like the COMPAS in our community of Pittsburgh, Pennsylvania. The PittCyber task force has announced via [community meetings](https://www.wesa.fm/post/residents-raise-concerns-about-bias-countys-automated-decision-making-tools#stream/0) that a recidivism RAI is being used here, but there is very little public information available. [Predictive policing](https://www.nbcnews.com/mach/science/how-science-helping-stop-crime-it-occurs-ncna805176) is also being used in Pittsburgh, and presenters at the [Pittsburgh Racial Justice Summit](http://pittsburghracialjusticesummit.org/the-2020-summit/) shared that they are working to increase public transparency about this process, as very little information is shared publicly. 
 
-
-## **References and Other Links**  
+## **Additional References and Links**  
 
 [Our github repo](https://github.com/kaylareiman1/RecidivismPrediction)  
 [ProPublica main article]( https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
 [ProPublica methodology]( https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
 [ProPublica github]( https://github.com/propublica/compas-analysis)  
 [Raw version of COMPAS survey]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html)  
-[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)
+[Columbia article on Risk as proxy for race (2010)]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1677654)  
 [Article on Risk, Race, and Recidivism]( https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2687339) 
 [Original publication by COMPAS creator]( http://www.northpointeinc.com/files/publications/Criminal-Justice-Behavior-COMPAS.pdf)  
 [Assignment instructions on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4432299)  
 [Project description on Canvas]( https://canvas.cmu.edu/courses/14656/modules/items/4443203)  
+[Information about Predictive Policing](https://rss.onlinelibrary.wiley.com/doi/epdf/10.1111/j.1740-9713.2016.00960.x)  
+[Nature article on limitations of machine learning](https://www.nature.com/articles/s41562-017-0141.epdf?author_access_token=zp6NdnflZBcbq4u8QE13i9RgN0jAjWel9jnR3ZoTv0OrWCV-_5fNRpT89FpEf7bpDfmwoV6oPboJp9g43OZUEZ3Jvuivgqlqr1rjq9C3M62_Ady8s_dGfhXTCFeIUphULML1P_InKq12GOvN0UKaRw%3D%3D)  
+Some conceptual understanding of racial bias in arrest data was informed by an [October 2019 lecture](https://heinz.campusgroups.com/DTW/rsvp_boot?id=598928) at Heinz College by Patrick Ball of the [Human Right Data Analysis Group](https://hrdag.org/usa/). 
 
 ## **Appendix: Data Cleaning**  
 
