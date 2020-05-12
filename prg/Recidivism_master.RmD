@@ -83,7 +83,7 @@ The COMPAS is widely used across states. It gives people a risk score ranging fr
 Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
 
 #### **Data**
-This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, although we drop the same observations (rows) as they do, we have adapted their code so that it does not drop any attributes (columns) because this would be bad practice for data mining.  
+This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, although we drop the same observations (rows) as they do, we have adapted their code so that it does not drop any attributes (columns) because this would be bad practice for data mining. One additional difference between our analysis and that of ProPublica is that our analysis of violent recidivism uses a larger dataset. Their staff chose to drop non-violent recidivators, but we leave in these observations. More information is included in the appendix..  
 
 ```{r, message = FALSE, cache = TRUE}
 ###################################
@@ -249,7 +249,7 @@ recid.new <- dplyr::select(recid.new, #dataset
                         )
 ```
 
-After removing redundant variables and those that would be unknown at the time of conviction, our dataset consisted of `r nrow(recid.new)` observations.  
+After cleaning, our dataset consisted of `r nrow(recid.new)` observations. 
 
 #### **1b: Demographic Characteristics**
 The univariate graphs below show that individuals in the dataset were most commonly male, black, and between the ages of 20 and 45.
@@ -489,7 +489,7 @@ An overview of datasets is below:
 
 | Dataset         | Purpose                      | Rows                   |  
 |-----------------|------------------------------|------------------------| 
-| recid.new       | Full cleandataset - used above |  `r nrow(recid.new)`  |    
+| recid.new       | Full clean dataset - used above |  `r nrow(recid.new)`  |    
 | train.dat       | Training models              |  `r nrow(train.dat)`    |  
 | val.dat         | Validating models            |  `r nrow(val.dat)`      |  
 | test.dat        | New data for the final model |  `r nrow(test.dat)`     |  
@@ -611,7 +611,7 @@ Depending on the metric used, the best-performing model uses somewhere between `
 kable(coef(recid.subsets, 7), format = "markdown", digits = 3, col.names = c("Value"))
 ```
 
-***Model outcome***  
+**Model outcome**  
 Based on the findings above, we trained a logistic regression model on the training dataset. Results are below. As expected, every p-value is significant except for `age_factorGreater than 45`, which was included because it is part of the same categorical variable as `age_factorUnder 25`.
 
 The logistic regression produces probabilities that an individual will recidivate in the two year time span. This allows us to tune a threshold and observe different model accuracies with different thresholds. The histogram below shows that there's a large range of outcomes from our prediction model.
@@ -648,7 +648,7 @@ ggplot(data = as.data.frame(train.pred.logit),
        title = "Distribution of Recidivism Predictions (Logistic Regression)")
 ```
 
-We then evaluated our classifier's accuracy, examining both specificity and sensitivity. An overview of these measures is below:  
+We then evaluated our classifier's accuracy, along with both specificity and sensitivity. An overview of these measures is below:  
    -**Accuracy**: This is the percentage of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different. That said, it is the simplest measure of a classifier's performance. The accuracy rate is 1 - the misclassification rate.    
     -**Specificity**: This is the percentage of non-recidivators who are correctly classified by the model. High specificity is important because it reduces the risk of incarcerating people who pose no risk to society. We consider specificity the most important metric for our all-recidivism (as opposed to violent recidivism) model because we believe false positives (which lead to wrongful incarceration) are more costly than false negatives (which lead to wrongful release).  
    -**Sensitivity**: This is the percentage of recidivators who are correctly classified by the model. A highly sensitive model would correctly predict most individuals who will recidivate within two years. We consider sensitivity a more important metric for our violent recidivism model than for the full recidivism model.  
@@ -663,6 +663,7 @@ confusions.pred.train = table(confusion.glm, train.dat$any_recid_2yr)
 dimnames(confusions.pred.train)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.pred.train, caption = "**Logistic regression: confusion matrix using training data**")
 ```
+  
 When applied to the training data, this model has an accuracy rate of ``r scales::percent(sum(diag(confusions.pred.train)) / sum(confusions.pred.train), accuracy = 0.1)``.  
 
 **Model Validation**  
@@ -718,7 +719,7 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
 #Changing threshold for next iteration
 logit.threshold <- 0.6
 ```
-Now we will increase the threshold to ``r scales::percent(logit.threshold)``.  
+In line with our goal of increasing specificity, we now increase the threshold to ``r scales::percent(logit.threshold)``.  
 With a **``r scales::percent(logit.threshold)``** threshold we find the following results:
 ```{r, message = FALSE}
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
@@ -825,7 +826,7 @@ roc_lda <- roc(response = val.dat$any_recid_2yr,
                percent = TRUE)
 ```
 
-The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value well above 50% meaning that the LDA model is a reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%. The optimal LDA model has a specificity of 79.5%, which is higher than that of the optimal logistic model, despite similar AUCs. Therefore, we are inclined to recommend LDA over logistic regression.  
+The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value well above 50% meaning that the LDA model is a reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%.
 
 ```{r}
 plot(roc_lda,
@@ -1494,7 +1495,6 @@ compas.spec.vio <- confusions.compas.vio["No (Predicted)", "No"] / sum(confusion
 ```
   
 **Summary Statistics for the best version of each data mining method**    
-**Update needed: fill in this whole thing and perhaps round or format better. Then add a discussion of it.** 
 
 Unlike modeling whether a picture is of a cat or a dog, which has ground truth, predicting whether an individual will recidivate is inherently random. For this reason, accuracy is not the best measure of how good our model is, and logistic regression (italicized in the chart below) appears to be the best model for this type of data.  
 This table (and the table below for violent recidivism) uses the thresholds we discussed in our earlier analysis.
@@ -1747,8 +1747,30 @@ FN.vio.AfAm <-  confusions.pred.test.vio.AfAm["No (Predicted)", "Yes"] / sum(con
 ### **2d2: Gender**  
 
 ``` {r}
+female.dat <- recid.new[test.dat$gender_factor == "Female",]
+male.dat <- recid.new[test.dat$gender_factor == "Male",]
 female.test.dat <- test.dat[test.dat$gender_factor == "Female",]
 male.test.dat <- test.dat[test.dat$gender_factor == "Male",]
+
+#COMPAS for gender
+confusions.compas.any.female = table(predicted = female.dat$score_factor, actual = female.dat$any_recid_2yr)
+dimnames(confusions.compas.any.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.female <- confusions.compas.any.female["Yes (Predicted)", "No"] / sum(confusions.compas.any.female[,"No"])
+FN.compas.any.female <-  confusions.compas.any.female["No (Predicted)", "Yes"] / sum(confusions.compas.any.female[,"Yes"])
+confusions.compas.any.male = table(predicted = male.dat$score_factor, actual = male.dat$any_recid_2yr)
+dimnames(confusions.compas.any.male)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.male <- confusions.compas.any.male["Yes (Predicted)", "No"] / sum(confusions.compas.any.male[,"No"])
+FN.compas.any.male <-  confusions.compas.any.male["No (Predicted)", "Yes"] / sum(confusions.compas.any.male[,"Yes"])
+#COMPAS FOR GENDER - VIO
+confusions.compas.vio.female = table(predicted = female.dat$v_score_factor, actual = female.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.female <- confusions.compas.vio.female["Yes (Predicted)", "No"] / sum(confusions.compas.vio.female[,"No"])
+FN.compas.vio.female <-  confusions.compas.vio.female["No (Predicted)", "Yes"] / sum(confusions.compas.vio.female[,"Yes"])
+confusions.compas.vio.male = table(predicted = male.dat$v_score_factor, actual = male.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.male)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.male <- confusions.compas.vio.male["Yes (Predicted)", "No"] / sum(confusions.compas.vio.male[,"No"])
+FN.compas.vio.male <-  confusions.compas.vio.male["No (Predicted)", "Yes"] / sum(confusions.compas.vio.male[,"Yes"])
+##Our RAI using test data
 ##female PEOPLE VERSION OF FINAL TEST - any 
 final.predict.test.any.female = predict(glm.logit, female.test.dat, type="response") 
 final.predict.test.any.female = ifelse(final.predict.test.any.female > 0.6, "1", "0") #threshold of 0.6
@@ -1765,6 +1787,24 @@ dimnames(confusions.pred.test.any.male)[[1]] = c("No (Predicted)","Yes (Predicte
 FP.any.male <- confusions.pred.test.any.male["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.male[,"No"])
 FN.any.male <-  confusions.pred.test.any.male["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.male[,"Yes"])
 ```
+
+**Original tool**  
+
+ProPublica didn't analyze the COMPAS for differences by gender, so we added this analysis. It turns out that the COMPAS was remarkably fair across gender lines.  Ours was not.
+
+
+| COMPAS Finding: Any Recidivism               |           Female | Male | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False Positive)      |`r scales::percent(FP.compas.any.female, 0.1)`  | `r scales::percent(FP.compas.any.male, 0.1)` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.any.female, 0.1)`  | `r scales::percent(FN.compas.any.male, 0.1)` |
+
+| COMPAS Finding: Violent Recidivism               |           Female | Male | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False Positive)      |`r scales::percent(FP.compas.vio.female, 0.1)`  | `r scales::percent(FP.compas.vio.male, 0.1)` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.vio.female, 0.1)`  | `r scales::percent(FN.compas.vio.male, 0.1)` |
+
+
+**Our tool**  
 
 From the Gender table below we see that our model strongly favors giving female individuals a lower recidivism risk rating. The False Negative rate of ``r scales::percent(FN.any.female, 0.1)`` is especially telling, indicating that our model correctly identifies only ``r round(100*(1-FN.any.female))`` of every hundred recidivating women. Our model's sensitivity rate for males is ``r round((1 - FN.any.male) / (1 - FN.any.female), 1)`` times higher than for females, meaning it is ``r round((1 - FN.any.male) / (1 - FN.any.female), 1)`` times more likely to successfully detect risk in men than in women.  
 
@@ -1802,6 +1842,57 @@ FN.vio.male <-  confusions.pred.test.vio.male["No (Predicted)", "Yes"] / sum(con
 | Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.vio.female, 0.1)`  | `r scales::percent(FN.vio.male, 0.1)` |
 
 ### **2d3: Age**  
+
+**Original tool**  
+
+We also test the COMPAS's bias on the basis of age, as shown in the following tables. Similar to race, the COMPAS was likely to misclassify people in different directions based on age. Specifically, young people were much more likely to be labeled high-risk without re-offending (false positive), while older people were more likely to be labeled low-risk while re-offending (false negatives).
+
+``` {r}
+#SUBSET BY AGE
+age1.dat <- recid.new[recid.new$age_factor == "Less than 25",]
+age2.dat <- recid.new[recid.new$age_factor == "25 - 45",]
+age3.dat <- recid.new[recid.new$age_factor == "Greater than 45",]
+#COMPAS for age1
+confusions.compas.any.age1= table(predicted = age1.dat$score_factor, actual = age1.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age1)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age1 <- confusions.compas.any.age1["Yes (Predicted)", "No"] / sum(confusions.compas.any.age1[,"No"])
+FN.compas.any.age1 <-  confusions.compas.any.age1["No (Predicted)", "Yes"] / sum(confusions.compas.any.age1[,"Yes"])
+confusions.compas.vio.age1 = table(predicted = age1.dat$v_score_factor, actual = age1.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age1)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age1 <- confusions.compas.vio.age1["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age1[,"No"])
+FN.compas.vio.age1 <-  confusions.compas.vio.age1["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age1[,"Yes"])
+#COMPAS for age2
+confusions.compas.any.age2= table(predicted = age2.dat$score_factor, actual = age2.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age2)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age2 <- confusions.compas.any.age2["Yes (Predicted)", "No"] / sum(confusions.compas.any.age2[,"No"])
+FN.compas.any.age2 <-  confusions.compas.any.age2["No (Predicted)", "Yes"] / sum(confusions.compas.any.age2[,"Yes"])
+confusions.compas.vio.age2 = table(predicted = age2.dat$v_score_factor, actual = age2.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age2)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age2 <- confusions.compas.vio.age2["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age2[,"No"])
+FN.compas.vio.age2 <-  confusions.compas.vio.age2["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age2[,"Yes"])
+#COMPAS for age3
+confusions.compas.any.age3= table(predicted = age3.dat$score_factor, actual = age3.dat$any_recid_2yr)
+dimnames(confusions.compas.any.age3)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.any.age3 <- confusions.compas.any.age3["Yes (Predicted)", "No"] / sum(confusions.compas.any.age3[,"No"])
+FN.compas.any.age3 <-  confusions.compas.any.age3["No (Predicted)", "Yes"] / sum(confusions.compas.any.age3[,"Yes"])
+confusions.compas.vio.age3 = table(predicted = age3.dat$v_score_factor, actual = age3.dat$vio_recid_2yr)
+dimnames(confusions.compas.vio.age3)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.compas.vio.age3 <- confusions.compas.vio.age3["Yes (Predicted)", "No"] / sum(confusions.compas.vio.age3[,"No"])
+FN.compas.vio.age3 <-  confusions.compas.vio.age3["No (Predicted)", "Yes"] / sum(confusions.compas.vio.age3[,"Yes"])
+```
+
+| COMPAS: Any Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
+|------------------------------------------------------------------|-----------------|------------------|--------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r scales::percent(FP.compas.any.age1, 0.1)`  | `r scales::percent(FP.compas.any.age2, 0.1)` | `r scales::percent(FP.compas.any.age3, 0.1)`|
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.any.age1, 0.1)`  | `r scales::percent(FN.compas.any.age2, 0.1)` | `r scales::percent(FN.compas.any.age3, 0.1)`|
+
+
+| COMPAS: Violent Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
+|------------------------------------------------------------------|-----------------|------------------|--------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r scales::percent(FP.compas.vio.age1, 0.1)`  | `r scales::percent(FP.compas.vio.age2, 0.1)` | `r scales::percent(FP.compas.vio.age3, 0.1)`|
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r scales::percent(FN.compas.vio.age1, 0.1)`  | `r scales::percent(FN.compas.vio.age2, 0.1)` | `r scales::percent(FN.compas.vio.age3, 0.1)`|
+
+**Our tool**  
 
 Based on our analysis focusing on age, we find that our model also seems to assume that if you are in the age group of "Greater than 45," then you are at a lower risk of recidivating than the actual data shows. Furthermore, the younger an individual is, the more likely our model is to give that individual a higher risk rating. While this is in parallel with what we found in our analysis of the data during our model building process (see the PCA plot), our model is biased against younger individuals.  
 
