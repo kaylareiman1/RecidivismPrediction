@@ -916,6 +916,11 @@ summary.tree.recid <- summary(tree.recid)
 
 Using the training dataset (with ``r nrow(train.dat)`` rows), we find an accuracy rate of ``r scales::percent(1 - summary.tree.recid$misclass[1]/summary.tree.recid$misclass[2], accuracy = 0.1)``. The initial tree predicting whether a person will recidivate within two years is shown below.  
 
+```{r}
+plot(tree.recid)
+text(tree.recid, pretty = 0)
+```
+
 **Validation: Classification tree**  
 However, this is only the first step in the process. We must next re-run the model using our validation data with (with ``r nrow(val.dat)`` rows).
 
@@ -977,7 +982,7 @@ kable(tibble(Accuracy = scales::percent(tree.acc, accuracy = 0.1),
 ```
 
 **Model: Regression trees**  
-The following figures demonstrate modeling with regression trees. Although the data is not continuous, the factor variable is binary and therefore can be approached numerically. As we learned in class, a model can fail to meet certain assumptions while still providing a high level of prediction value in classification. So while we do not expect a perfect model from the regression tree, there is still value to examining its results. In addition, the regression tree allows us to look at tradeoffs in sensitivity and specificity via an ROC curve - which was not possible with a classification tree. 
+The following figures demonstrate modeling with regression trees. Although the data is not continuous, the factor variable is binary and therefore can be approached numerically. A model can fail to meet certain assumptions while still providing a high level of prediction value in classification. So while we do not expect a perfect model from the regression tree, there is still value to examining its results. In addition, the regression tree allows us to look at tradeoffs in sensitivity and specificity via an ROC curve - which was not possible with a classification tree. 
 
  
 Simple regression tree output using the `tree` function is below. 
@@ -1001,7 +1006,7 @@ plot(reg.tree.recid)
 text(reg.tree.recid, pretty = 0)
 ```
 
-We also tried the regression tree using the `rpart` function, which allowed for a more informative picture. 
+We also tried the regression tree using the `rpart` function, which allowed for a more informative picture of the same results. 
 ```{r}
 #Create model using rpart function and training dataset
 tree.recid.rpart.train <- rpart(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi - juv_other_bi - juv_misd_bi - age_factor),
@@ -1067,7 +1072,7 @@ Using those criteria, only 41.6% of recidivators would be correctly identified, 
 
 ***2a.5 Random Forest***  
 
-Building on the decision tree work above, we now assess the data using random forests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
+Building on the decision tree work above, we now assess the data using random forests. Although these models are less user-friendly than single trees, they reduce variance and are far more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
 
 
 
