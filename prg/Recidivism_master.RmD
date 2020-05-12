@@ -809,15 +809,16 @@ lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
 kable(tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(lda.cv.spec, accuracy = 0.1)))
+
+## Drop an ROC like it's hot
+roc_lda <- roc(response = val.dat$any_recid_2yr,
+               predictor = lda.pred.val$posterior[,"Yes"],
+               percent = TRUE)
 ```
 
 The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value well above 50% meaning that the LDA model is a reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%. The optimal LDA model has a specificity of 79.5%, which is higher than that of the optimal logistic model, despite similar AUCs. Therefore, we are inclined to recommend LDA over logistic regression.  
 
 ```{r}
-## Drop an ROC like it's hot
-roc_lda <- roc(response = val.dat$any_recid_2yr,
-               predictor = lda.pred.val$posterior[,"Yes"],
-               percent = TRUE)
 plot(roc_lda,
      main="LDA - ROC Chart",
      col = roc_lda.col,
@@ -943,7 +944,6 @@ cv.recid=cv.tree(tree.recid, FUN=prune.misclass)
 #plot the error rate as a function of both size and k.
 par(mfrow=c(1,2))
 plot(cv.recid$size,cv.recid$dev,type="b")
-plot(cv.recid$k,cv.recid$dev,type="b")
 cv.recid.df <- data.frame(cv.recid$size, cv.recid$dev)
 #Figure out smallest deviance
 cv.recid.min.dev <- min(cv.recid.df$cv.recid.dev)
@@ -1092,7 +1092,7 @@ rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(train.dat)
 
 Surprisingly, this matrix shows that the overall accuracy rate for this random forest is ``r scales::percent(1 - rf.error, accuracy = 0.1)``, which is not substantially better than our other models.
 
-To increase transparency, the plots below show the importance of each variable in the random forest model. Looking at the plot on the right, a small Gini coefficient indicates increased node purity. We see that age decreases the Gini coefficient the most, followed by length of stay, priors count, and the log of priors count.  The least meaningful variables are the juvenile records. Race is our 5th-most important predictor here. We chose to leave this variable in because models that exclude race are not necessarily race-neutral, as seen with the COMPAS model. We will assess discrimination later in this report.
+To increase transparency, the plots below show the importance of each variable in the random forest model. Looking at the plot on the right, a small Gini coefficient indicates increased node purity. We see that `age` decreases the Gini coefficient the most, followed by `priors_count`, `length_of_stay`, and `race_factor`.  The least meaningful variables are the juvenile records. We chose to include race in our model because models that exclude race are not necessarily race-neutral, as seen with the COMPAS model. We will assess discrimination later in this report.
 
 ```{r}
 varImpPlot(recid.rf, main="Variable Importance by Factor")
@@ -1117,32 +1117,12 @@ rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sen
 #rf.vals$specificity
 #rf.vals$sensitivity
 ```
-The Random Forest model does seem to be a reasonable classifier, on par with the logistic regression and LDA models.
-
-```{r, warnings = FALSE}
-rf.predict <- as.data.frame(predict(recid.rf, test.dat, type = "prob"))
-#Adapting code from other parts of the program
-roccurve.rpart<- roc(response = test.dat$two_year_recid,
-                     predictor = rf.predict$Yes,
-                     percent = TRUE)
-plot.roc(roccurve.rpart,
-         print.auc = TRUE,
-         print.thres = TRUE,
-         asp = 0,
-         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
-         col = roccurve.rpart.col)
-rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sensitivity"))
-#rf.vals$threshold
-#rf.vals$specificity
-#rf.vals$sensitivity
-```
-
-<span style ="color: red;">**Is this sentence needed?: "We then decided to pursue [which models should we use?]" Are we choosing the best model for non-violent recidivism before delving into violent recidivism? Or both best models are picked at the very end? Either way is fine by me! We should just explain that we're moving to violent recidivism models and maybe provide a link to the "Model Decisions" section?**</span> 
+  
+The Random Forest model does seem to be a reasonable classifier, although it performs slightly worse than logistic regression and LDA models as judged by area under the curve.
 
 ### **Running models for only violent recidivism**    
-**Update needed: copy and paste everything here that we did for full recidivism (any_recid_2yr) except with violent recidivism (vio_recid_2yr) - starting with logistic regression**
-<span style ="color: red;"> So I'm leaving this here because I'm assuming once vio is done it will come here and then we'll go over the best models?.</span> 
-We now re-run all models above for violent recidivism. There are some limitations that we will explore, given that violent recidivism is less common than total recidivism. We will provide a summary analysis at the end of this section.    
+We now re-run all models above for violent recidivism. Some different approaches will be necessary, given that violent recidivism is less common than total recidivism (``r rate.all``% as opposed to ``r rate.vio``%).    
+  
 ***2a.1V: Logistic regression:***  
 
 **Variable Selection**  
@@ -1271,7 +1251,8 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
 ***2a.2V Linear Discriminant Analysis (LDA)***  
 
 **Model Outcome**
-Running an LDA on our training data with a threshold of 15%, we achieve the following results.
+Based on experience with the logistic regression, we realized that 50% is not an appropriate threshold for violent recidivism models because the proportion of violent recidivators is so low. Therefore, we decided to try a threshold of ``r scales::percent(mean(train.dat$vio_recid_2yr == "Yes"), accuracy = 0.1)`` (the violent recidivism rate in our training data), and our LDA achieved the following results:  
+
 ```{r}
 recid.vio.lda <- lda(vio_recid_2yr ~
                    crime_factor +
@@ -1287,7 +1268,8 @@ recid.vio.lda.pred.train <- predict(recid.vio.lda,
                           type = "response")
 #table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.218),
 #                    actual = val.dat$two_year_recid)
-lda.tab = table(predicted = (recid.vio.lda.pred.train$posterior[,"Yes"] > 0.15),
+rate.vio2 <- mean(train.dat$vio_recid_2yr == "Yes")
+lda.tab = table(predicted = (recid.vio.lda.pred.train$posterior[,"Yes"] > rate.vio2),
                 actual = train.dat$vio_recid_2yr)
 dimnames(lda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(lda.tab)
@@ -1301,19 +1283,19 @@ kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
 ```
   
 **Model Validation**  
-Just like for logistic regression, we then re-ran the model using our validation data and a threshold of 15%. The results are below.
+Just like for logistic regression, we then re-ran the model using our validation data and a threshold of ``r scales::percent(rate.vio2, accuracy = 0.1)``. The results are below.
 ```{r}
 lda.pred.val <- predict(object = recid.vio.lda, val.dat, type = "response")
-lda.cv.tab = table(predicted = (lda.pred.val$posterior[,"Yes"] > 0.15),
+lda.cv.tab = table(predicted = (lda.pred.val$posterior[,"Yes"] > rate.vio2),
                    actual = val.dat$vio_recid_2yr)
 dimnames(lda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(lda.cv.tab)
 lda.cv.acc <- (lda.cv.tab[1,1] + lda.cv.tab[2,2]) / sum(lda.cv.tab)
 lda.cv.sens <- lda.cv.tab[2,2] / sum(lda.cv.tab[,2])
 lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
-tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
+kable(tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.cv.sens, accuracy = 0.1),
-             Specificity = scales::percent(lda.cv.spec, accuracy = 0.1))
+             Specificity = scales::percent(lda.cv.spec, accuracy = 0.1)))
 
 #ROC Curve
 roc_lda.vio <- roc(response = val.dat$vio_recid_2yr,
@@ -1331,7 +1313,7 @@ plot(roc_lda.vio,
 
 ***2a.3V Quadratic Discriminant Analysis (QDA)***  
 **Variable Selection and Model Outcomes**  
-We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes. Below are the accuracy, sensitivity, and specificity for a 15% threshold: 
+We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes. Below are the accuracy, sensitivity, and specificity for a ``r scales::percent(rate.vio2, accuracy = 0.1)`` threshold: 
 ```{r}
 recid.vio.qda <- qda(vio_recid_2yr ~
                    crime_factor +
@@ -1344,7 +1326,7 @@ recid.vio.qda <- qda(vio_recid_2yr ~
                  data = train.dat)
 recid.vio.qda.pred.train <- predict(recid.vio.qda,
                           type = "response")
-qda.tab = table(predicted = (recid.vio.qda.pred.train$posterior[,"Yes"] > 0.15),
+qda.tab = table(predicted = (recid.vio.qda.pred.train$posterior[,"Yes"] > rate.vio2),
                 actual = train.dat$two_year_recid)
 dimnames(qda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(qda.tab)
@@ -1361,7 +1343,7 @@ kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
 qda.cv.pred <- predict(object = recid.vio.qda,
                        newdata = val.dat,
                        type = "response")
-qda.cv.tab = table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.15),
+qda.cv.tab = table(predicted = (qda.cv.pred$posterior[,"Yes"] > rate.vio2),
                    actual = val.dat$two_year_recid)
 dimnames(qda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 dimnames(qda.cv.tab)[[2]] = c("No", "Yes")
@@ -1390,22 +1372,19 @@ plot(roc_qda.vio,
 
 ***2a.4V Classification And Regression Tree***  
 
-**Classification tree: Variable Selection**  
-The output shows a classification tree that predicts that nobody will violently recidivate. It is a bit odd that the tree still splits on priors, but the regression tree will help us shed more light on that.  
+The output shows a classification tree that predicts that nobody will violently recidivate. It is a bit odd that the tree still splits on priors, but the regression tree sheds some light on that. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model used an inappropriate 50% cutoff.  
 
 ```{r}
 #CLASSIFICATION TREE -- direct copy/paste
 #Run tree
 tree.viorecid <- tree(formula = update(fullmodelvio, ~ . - priors_log),
                       data = train.dat)
+
+par(mfrow = c(1,2))
 #Plot
 plot(tree.viorecid)
 text(tree.viorecid, pretty = 0)
-```
 
-The regression tree is shown below. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model used an inappropriate 50% cutoff.
-
-```{r, warnings = FALSE}
 # Regression Tree - Moses version
 #Run REGRESSION tree
 reg.tree.recidvio <- tree(formula = (as.numeric(vio_recid_2yr) - 1) ~
@@ -1433,15 +1412,16 @@ roccurve.rpart.vio <- roc(response = val.dat$response.recidvio,
                      predictor = tree.pred.rpart.train,
                      percent = TRUE)
 #Plot ROC -- still for training
+par(mfrow = c(1,1))
 plot.roc(roccurve.rpart.vio,
          print.auc = TRUE,
          print.thres = TRUE,
-         print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
+         print.thres.pattern = "%.3f\n(%.1f%%,\n%.1f%%)",
          asp = 0,
          col = roccurve.rpart.col)
 ```
 
-This is clearly not a particularly useful model.
+This is clearly not a particularly useful model. Even with the best threshold, sensitivity and specificity are quite low.
 
 ***2a.5V Random Forest***  
 ```  {r}
@@ -1511,19 +1491,6 @@ Unlike modeling whether a picture is of a cat or a dog, which has ground truth, 
 | Random Forest (RF)                         |                |                  |             |  
 
 
-
-#### **Frontier Plot to Help Decide on Best Model
-***The figure below is a scatter plot of Specificity v Sensitivity values for the models explained in the any-recidivism section 2a, above. This frontier curve provides an illustrative means of comparing the models.***
-<span style ="color: red;"> If anyone wants to describe where exactly the smiley face in this plot should be? When Moses and I discussed this we mentioned picking a model for the any-recidivism predictions that would have high specificity, but also not extremely low specificity, so maybe the LDA model around (0.8, 0.6) or the Logistic Regression model around (0.87, 0.4).</span> 
-
-```{r}
-frontier_datframe <- data.frame("Threshold" = c(0.462, 0.6, 0.7, 0.5, 0.519, 0.5, 0218), "Specificity" = c(0.722, 0.879, 0.943, 0.768, 0.795, 0.792, 0.622),
-                                "Sensitivity" = c(0.657, 0.419, 0.206, 0.594, 0.579, 0.431, 0.699), "Model" = c("Logistic Regression", "Logistic Regression", "Logistic Regression", "LDA", "LDA", "QDA", "QDA"))
-frontier_datframe
-plot(x = frontier_datframe$Specificity, y = frontier_datframe$Sensitivity)
-ggplot(data = frontier_datframe, aes(x = Specificity, y = Sensitivity)) + geom_point() + geom_text(aes(label = Model))
-```
-
 Another helpful illustration is a side-by-side comparison of the models ROC curves: 
 
 ```{r}
@@ -1562,8 +1529,8 @@ plot (roc_qda, col = roc_qda.col, lty = 10, add = TRUE)
 plot (roccurve.trpart, col = roccurve.trpart.col, lty = 3, add = TRUE)
 #Random Forest ROC
 plot (roccurve.rpart, col = roccurve.rpart.col, lty = 2, add = TRUE)
-legend(x = 30,
-       y = 42,
+legend(x = 42,
+       y = 50,
        legend = c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"),lty = c(1,1), 
        lwd = c(2,2),
        col = c(roccurve.logit.col,
@@ -1716,7 +1683,4 @@ kable(recid.all %>%
 kable(recid.all %>%
         count(race_factor, race))
 ```
-
-
-<span style ="color: red;"> Just a reminder that this should be moved to before model picking, or if we are keeping it at the very end, this should be explained and the table specifically for violent-recidivism should be pasted below this section.</span> 
 
