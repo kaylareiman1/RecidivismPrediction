@@ -1577,10 +1577,11 @@ legend(x = 42,
 
 
 #### **2c: Final model(s)**
-Our final model for all recidivism is....
-This has an accuracy rate of [], specifity of []. We chose it because... Then we ran it with our test data (10% of the original dataset randomly selected before any of data mining began) and found....
+Our final model for all recidivism is a logistic regression with a threshold of 0.6. We chose to use a logistic regression because (along with LDA) it had the largest AUC and the best combinations of sensitivity and specificity. We chose 0.6 as our threshold because it offered very high specificity without sacrificing much accuracy.
+Our final model for violent recidivism is also a logistic regression, because again it was (together with LDA) a top-performing model. We chose the optimal threshold of 0.103 because it offered strong sensitivity as well as specificity, both of which are important for predicting violent recidivism.
 
-Our final model for all recidivism is...
+Then we ran it with our test data (10% of the original dataset randomly selected before any of data mining began) and found the following results.
+
 ```{r, message = FALSE}
 final.predict.test.any = predict(glm.logit, test.dat, type="response") 
 final.predict.test.any = ifelse(final.predict.test.any > 0.6, "1", "0") #threshold of 0.6
@@ -1600,8 +1601,8 @@ kable(tibble(accuracy = scales::percent(final.acc.vio, 0.1),
 And for violent recidivism...
 ```{r}
 ##Violent
-final.predict.test.vio = predict(glm.logit, test.dat, type="response") 
-final.predict.test.vio = ifelse(final.predict.test.vio > 0.6, "1", "0") #threshold of 0.6
+final.predict.test.vio = predict(glm.viologit, test.dat, type="response") 
+final.predict.test.vio = ifelse(final.predict.test.vio > 0.103, "1", "0") #threshold of 0.103
 confusions.pred.test.vio = table(final.predict.test.vio, test.dat$vio_recid_2yr)
 
 ##Confusion Matrix
@@ -1616,29 +1617,135 @@ kable(tibble(accuracy = scales::percent(final.acc.vio, 0.1),
 ```
 
 #### **2d: Demographic analysis of the best version of each model:**  
-After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. We will use our test dataset for this exercise, since it wasn't used to build the models. The table below shows the number of African-American and white people in our test data.
+After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
+We will reproduce this table using our own data and hope to have less inequality than was shown in the replicated ProPublica chart below. 
+
+| ProPublica's COMPAS finding                |           White | African American | 
+|--------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)|            23.5%|            44.9% |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)|            47.7%|            28.0% |
+
+
+
+***2d1: Race***  
+The table below shows the number of African-American and white people in our test data.
 
 ``` {r}
 #Create 0/1 flags for white and African-American
 test.dat$AfAm = ifelse(test.dat$race_factor == "African-American", 1, 0)
 test.dat$white = ifelse(test.dat$race_factor == "Caucasian", 1, 0)
 
-# test.dat %>%
-#   filter(is.test ==1)%>%
-#   group_by(race_factor) %>%
-#   summarize(sum(AfAm), sum(white))
+white.test.dat <- test.dat[test.dat$white==1,]
+AfAm.test.dat <- test.dat[test.dat$AfAm==1,]
 
+##WHITE PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.white = predict(glm.logit, white.test.dat, type="response") 
+final.predict.test.any.white = ifelse(final.predict.test.any.white > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.white = table(final.predict.test.any.white, white.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.white)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.white <- confusions.pred.test.any.white["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.white[,"No"])
+FN.any.white <-  confusions.pred.test.any.white["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.white[,"Yes"])
+  
+##Black PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.AfAm = predict(glm.logit, AfAm.test.dat, type="response") 
+final.predict.test.any.AfAm = ifelse(final.predict.test.any.AfAm > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.AfAm = table(final.predict.test.any.AfAm, AfAm.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.AfAm)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.AfAm <- confusions.pred.test.any.AfAm["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.AfAm[,"No"])
+FN.any.AfAm <-  confusions.pred.test.any.AfAm["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.AfAm[,"Yes"])
+
+# ##WHITE PEOPLE VERSION OF FINAL TEST - vio 
+# final.predict.test.vio.white = predict(glm.logit, white.test.dat, type="response") 
+# final.predict.test.vio.white = ifelse(final.predict.test.vio.white > 0.6, "1", "0") #threshold of 0.6
+# confusions.pred.test.vio.white = table(final.predict.test.vio.white, white.test.dat$vio_recid_2yr)
+# dimnames(confusions.pred.test.vio.white)[[1]] = c("No (Predicted)","Yes (Predicted)")
+# FP.vio.white <- confusions.pred.test.vio.white["Yes (Predicted)", "No"] / sum(confusions.pred.test.vio.white[,"No"])
+# FN.vio.white <-  confusions.pred.test.vio.white["No (Predicted)", "Yes"] / sum(confusions.pred.test.vio.white[,"Yes"])
+#   
+# ##Black PEOPLE VERSION OF FINAL TEST - vio 
+# final.predict.test.vio.AfAm = predict(glm.logit, AfAm.test.dat, type="response") 
+# final.predict.test.vio.AfAm = ifelse(final.predict.test.vio.AfAm > 0.6, "1", "0") #threshold of 0.6
+# confusions.pred.test.vio.AfAm = table(final.predict.test.vio.AfAm, AfAm.test.dat$vio_recid_2yr)
+# dimnames(confusions.pred.test.vio.AfAm)[[1]] = c("No (Predicted)","Yes (Predicted)")
+# FP.vio.AfAm <- confusions.pred.test.vio.AfAm["Yes (Predicted)", "No"] / sum(confusions.pred.test.vio.AfAm[,"No"])
+# FN.vio.AfAm <-  confusions.pred.test.vio.AfAm["No (Predicted)", "Yes"] / sum(confusions.pred.test.vio.AfAm[,"Yes"])
+#   
 ```
 
 
-| Our RAI: Any Recidivism                    |           White | African American | 
-|--------------------------------------------|-----------------|------------------|
-| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)|          |         |
-| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)|          |         | 
+| Our RAI: Any Recidivism                                          |           White | African American | 
+|------------------------------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r FP.any.white`  | `r FP.any.AfAm` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r FN.any.white`  | `r FN.any.AfAm` |
 
-***2d1: Race***     
-***2d2: Gender***  
+   
+***2d2: Gender*** 
+
+``` {r}
+female.test.dat <- test.dat[test.dat$gender_factor == "Female",]
+male.test.dat <- test.dat[test.dat$gender_factor == "Male",]
+
+##female PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.female = predict(glm.logit, female.test.dat, type="response") 
+final.predict.test.any.female = ifelse(final.predict.test.any.female > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.female = table(final.predict.test.any.female, female.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.female <- confusions.pred.test.any.female["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.female[,"No"])
+FN.any.female <-  confusions.pred.test.any.female["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.female[,"Yes"])
+  
+##Black PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.male = predict(glm.logit, male.test.dat, type="response") 
+final.predict.test.any.male = ifelse(final.predict.test.any.male > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.male = table(final.predict.test.any.male, male.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.male)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.male <- confusions.pred.test.any.male["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.male[,"No"])
+FN.any.male <-  confusions.pred.test.any.male["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.male[,"Yes"])
+```
+
+| Our RAI: Any Recidivism                                          |           Female | Male | 
+|------------------------------------------------------------------|-----------------|------------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r FP.any.female`  | `r FP.any.male` |
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r FN.any.female`  | `r FN.any.male` |
+
 ***2d3: Age***  
+
+
+``` {r}
+age1.test.dat <- test.dat[test.dat$age_factor == "Less than 25",]
+age2.test.dat <- test.dat[test.dat$age_factor == "25 - 45",]
+age3.test.dat <- test.dat[test.dat$age_factor == "Greater than 45",]
+
+##age1 PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.age1 = predict(glm.logit, age1.test.dat, type="response") 
+final.predict.test.any.age1 = ifelse(final.predict.test.any.age1 > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.age1 = table(final.predict.test.any.age1, age1.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.age1)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.age1 <- confusions.pred.test.any.age1["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.age1[,"No"])
+FN.any.age1 <-  confusions.pred.test.any.age1["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.age1[,"Yes"])
+  
+##age2 PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.age2 = predict(glm.logit, age2.test.dat, type="response") 
+final.predict.test.any.age2 = ifelse(final.predict.test.any.age2 > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.age2 = table(final.predict.test.any.age2, age2.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.age2)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.age2 <- confusions.pred.test.any.age2["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.age2[,"No"])
+FN.any.age2 <-  confusions.pred.test.any.age2["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.age2[,"Yes"])
+
+##age3 PEOPLE VERSION OF FINAL TEST - any 
+final.predict.test.any.age3 = predict(glm.logit, age3.test.dat, type="response") 
+final.predict.test.any.age3 = ifelse(final.predict.test.any.age3 > 0.6, "1", "0") #threshold of 0.6
+confusions.pred.test.any.age3 = table(final.predict.test.any.age3, age3.test.dat$any_recid_2yr)
+dimnames(confusions.pred.test.any.age3)[[1]] = c("No (Predicted)","Yes (Predicted)")
+FP.any.age3 <- confusions.pred.test.any.age3["Yes (Predicted)", "No"] / sum(confusions.pred.test.any.age3[,"No"])
+FN.any.age3 <-  confusions.pred.test.any.age3["No (Predicted)", "Yes"] / sum(confusions.pred.test.any.age3[,"Yes"])
+
+```
+
+| Our RAI: Any Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
+|------------------------------------------------------------------|-----------------|------------------|--------------|
+| Labeled Higher Risk, But Didn’t Re-Offend  (False positive)      |`r FP.any.age1`  | `r FP.any.age2` | `r FP.any.age3`|
+| Labeled Lower Risk, Yet Did Re-Offend      (False Negative)      |`r FN.any.age1`  | `r FN.any.age2` | `r FN.any.age3`|
+
 
 # **Section 3: Key Findings and Takeaways**  
 #### **3a: Comparing our tool to the COMPAS tool**  
