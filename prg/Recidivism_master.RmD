@@ -308,6 +308,7 @@ grid.arrange(ranking.all, ranking.vio, ncol = 2)
 #### **1e: Accuracy of COMPAS Predictions**  
 
 **Overall summary of COMPAS predictions**
+
 The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. Additional analysis of the COMPAS's predictions will be included in the comparison of our model against theirs. However, this initial analysis shows 2,345 true negatives (correctly identifying people as low risk), 1,733 true positives (correctly identifying people as high risk), and just over 1,000 each of false negatives and false positives. 
 ```{r, warning = FALSE, message = FALSE}
 #Create table
@@ -318,7 +319,8 @@ kable(confusions.compas.any, caption = "**Confusion matrix for the COMPAS: any r
 
 This confusion matrix shows an accuracy rate of ``r scales::percent(sum(diag(confusions.compas.any)) / sum(confusions.compas.any), accuracy = 0.1)``. Although just slightly lower than the published result from the full analysis using decile scores, this confusion matrix reflects ProPublica's methodology of comparing "low" versus "medium/high".  
 
-**Demographic summary of COMPAS predictions**
+**Demographic summary of COMPAS predictions**  
+
 Data visualization by demographic group (below) showed that the trends in recidivism were similar to predictions. However, a few limitations should be noted:  
    - The higher rate of recidivism among African-American respondents cannot be separated from bias in policing. African-Americans are [arrested at higher rates](https://www.sentencingproject.org/publications/un-report-on-racial-disparities/) for committing the same crimes as whites, so recididivism among white defendants is likely underreported relative to African-Americans. Additional information on this phenomenon is available in Michelle Alexander's book, [The New Jim Crow](https://newjimcrow.com/).  
    - This includes no interactions between terms demographic characteristics (ex. race and gender)  
@@ -828,7 +830,6 @@ recid.qda <- qda(any_recid_2yr ~
                    juv_other_bi +
                    length_of_stay,
                  data = train.dat)
-
 #Training data (calculated but not displayed)
 recid.qda.pred.train <- predict(recid.qda,
                           type = "response")
@@ -1609,9 +1610,11 @@ kable(tibble(Accuracy = scales::percent(final.acc.vio, 0.1),
 There was almost no drop in accuracy when we switched to using test data, suggesting that over-fitting did not occur.
 
 **Comparison of predictors for all recidivism vs. violent recidivism**
+
 While the predictors chosen by our Random Forests and regsubsets analyses were similar for all recidivism and violent recidivism, our final logistic model for violent recidivism included race based on the regsubsets analysis. 
 
-## **2d: Demographic analysis of our model:**  
+## **2d: Demographic analysis of our model**  
+
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. Notably, all of our demographic analysis below uses the $test$ data, which has a fairly low sample size.
 
 ### **2d1: Race**  
@@ -1737,7 +1740,6 @@ female.dat <- recid.new[test.dat$gender_factor == "Female",]
 male.dat <- recid.new[test.dat$gender_factor == "Male",]
 female.test.dat <- test.dat[test.dat$gender_factor == "Female",]
 male.test.dat <- test.dat[test.dat$gender_factor == "Male",]
-
 #COMPAS for gender
 confusions.compas.any.female = table(predicted = female.dat$score_factor, actual = female.dat$any_recid_2yr)
 dimnames(confusions.compas.any.female)[[1]] = c("No (Predicted)","Yes (Predicted)")
@@ -2045,7 +2047,7 @@ One major systematic difference between our classifications and those of COMPAS 
 
 ### **3b: Reflections on risk assessment tools**   
 
-We show in this report that with fewer variables, data mining tools available to the average student, and a limited amount of time, we were able to replicate the accuracy rate of a model already in use by the government, along with providing adjustments. While it is important for models to be validated, is it also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. If policy-makers are determined to use data mining for risk assessment, then tools such as the COMPAS should be tested not just for overall accuracy but for discrimination before they are used.  
+We show in this report that with fewer variables, data mining tools available to the average student, and a limited amount of time, we were able to replicate the accuracy rate of a model already in use by the government, along with providing adjustments. While it is important for models to be validated, it is also important that until they are proven ready to be fair to the people they are affecting, they should not play a role in any decision making. If policy-makers are determined to use data mining for risk assessment, then tools such as the COMPAS should be tested not just for overall accuracy but for discrimination before they are used.  
 
 As students at Carnegie Mellon, we are concerned about the use of RAIs like the COMPAS in our community of Pittsburgh, Pennsylvania. The PittCyber task force has announced via [community meetings](https://www.wesa.fm/post/residents-raise-concerns-about-bias-countys-automated-decision-making-tools#stream/0) that a recidivism RAI is being used here, but there is very little public information available. [Predictive policing](https://www.nbcnews.com/mach/science/how-science-helping-stop-crime-it-occurs-ncna805176) is also being used in Pittsburgh, and presenters at the [Pittsburgh Racial Justice Summit](http://pittsburghracialjusticesummit.org/the-2020-summit/) shared that they are working to increase public transparency about this process, as very little information is shared publicly. 
 
