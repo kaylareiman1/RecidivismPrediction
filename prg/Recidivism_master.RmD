@@ -60,30 +60,10 @@ In 2016, ProPublica published a [story](https://www.propublica.org/article/machi
 | Labeled Lower Risk, Yet Did Re-Offend      |            47.7%|            28.0% |
 
 #### **Additional information on the COMPAS**    
-The COMPAS is widely used across states. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved can be linked to poverty.  
-
-#### **Prompt**    
-* Using the available data, construct a Risk Assessment Instrument (RAI) for predicting two-year recidivism.   
-   - Evaluate the predictive performance of your model. 
-   - What are the most important predictors of recidivism?
-   
-* Create an RAI for predicting violent recidivism.
-   - Evaluate the predictive performance of your model. 
-   - What are the most important predictors of violent recidivism? 
-   - How do they compare to the important predictors of general recidivism?
-  
-* Assess whether the RAIs for any recidivism and specifically violent recidivism are equally predictive across race/ethnicity, age, and gender_factor groups.
-
-* Compare your RAIs to the COMPAS RAI. 
-   - Do your RAIs perform better or worse than COMPAS?   
-   - Do your RAIs produce similar classifications to COMPAS? 
-   - Can you identify any systematic differences between your classifications and those of COMPAS? 
+The COMPAS is widely used across states. It gives people a risk score ranging from 1 to 10, where risk scores of 1 to 4 are  “Low”, 5 to 7 are labeled “Medium”, and 8 to 10 are labeled “High.” Although race is not included in its [137 questions]( https://www.documentcloud.org/documents/2702103-Sample-Risk-Assessment-COMPAS-CORE.html), some of the  questions such as how often people moved arguably function as proxies for poverty.  
    
 #### **Goal** 
 Our goal is to investigate whether it is possible to create a Risk Assessment Instrument (RAI) that is more accurate and less racist than the COMPAS.
-
-#### **Data**
-This analysis is run using ProPublica's data. In order to have clean data, it is necessary to remove certain observations. Fortunately, ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in the same way (ex. dropping people whose charge date was not w/in 30 days ). However, although we drop the same observations (rows) as they do, we have adapted their code so that it does not drop any attributes (columns) because this would be bad practice for data mining. One additional difference between our analysis and that of ProPublica is that our analysis of violent recidivism uses a larger dataset. Their staff chose to drop non-violent recidivators, but we leave in these observations. More information is included in the appendix..  
 
 ```{r, message = FALSE, cache = TRUE}
 ###################################
@@ -156,8 +136,7 @@ recid.vio <- mutate(recid.vio, crime_factor = factor(c_charge_degree)) %>%
 # **Section 1: Exploratory Data Analysis**
 
 #### **1a: Overview of ProPublica's Datasets**  
-
-This project uses data from [ProPublica's github repository]( https://github.com/propublica/compas-analysis). In order to successfully work with their analysis, we ran their data cleaning code and then added our own additional steps. Additional information about our data cleaning process is in the appendix. 
+This analysis is run using data from [ProPublica's github repository]( https://github.com/propublica/compas-analysis). ProPublica staff published their [Jupyter notebook](https://github.com/propublica/compas-analysis/blob/master/Compas%20Analysis.ipynb) with data cleaning steps in R, so our data is cleaned in much the same way. However, while we drop the same observations (rows) as they do, we have adapted their code so as not to drop any attributes (columns) because this would be bad data mining practice. Additionally, our analysis of violent recidivism uses a larger dataset than ProPublica's. Their staff chose to drop non-violent recidivators, but we leave in these observations. More information is included in the appendix.  
 
 **Choosing Variables**  
 Our dataset has nine variables that could potentially be used to predict recidivism. These include:  
@@ -301,13 +280,13 @@ rate.vio <- recid.new %>%
   summarize(100*round(mean(vio_recid_2yr == "Yes"), 2))
 ```
 
-| Type                                   |Two-year Rate |
+| Type of recidivism                     |Two-year Rate |
 |----------------------------------------|--------------|
-| All recidivism                         | `r rate.all`%|
-| Violent recidivism                     | `r rate.vio`%|
+| All                                    | `r rate.all`%|
+| Violent                                | `r rate.vio`%|
 
 #### **1d: COMPAS Distributions**
-The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable called score_factor with two categories.  
+The graphs below show participants' 10-point scores, where a score of 10 indicates the highest recidivism potential. Judges were often shown categories of low, medium, and high risk. The ProPublica analysis combined the categories of medium and high in order to create a binary variable called `score_factor` with two categories.  
 
 ```{r, warning = FALSE, message = FALSE}
 #Create histograms of decile scores for all crime, color coded by the category. 
@@ -329,7 +308,7 @@ grid.arrange(ranking.all, ranking.vio, ncol = 2)
 #### **1e: Accuracy of COMPAS Predictions**  
 
 **Overall summary of COMPAS predictions**
-The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. Additional analysis of the COMPAS's predictions will be included in the comparison of our model against theirs. However, this initial analysis shows 2345 true negatives (correctly identifying people as low risk), 1733 true positives (correctly identifying people as high risk), and just over 1,000 false negatives as well as false positives. 
+The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. Additional analysis of the COMPAS's predictions will be included in the comparison of our model against theirs. However, this initial analysis shows 2,345 true negatives (correctly identifying people as low risk), 1,733 true positives (correctly identifying people as high risk), and just over 1,000 each of false negatives and false positives. 
 ```{r, warning = FALSE, message = FALSE}
 #Create table
 confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
@@ -476,9 +455,6 @@ recid.new <- mutate(recid.new,
                     is.train = ifelse(rand.split == 0, 1, 0),
                     is.val   = ifelse(rand.split == 2, 1, 0),
                     is.test  = ifelse(rand.split == 1, 1, 0))
-#Show that creation is correct
-kable(recid.new %>%
-        summarize("% Training" = scales::percent(mean(is.train)), "% Validation" = scales::percent(mean(is.val)), "% Test" = scales::percent(mean(is.test)), n = n()), caption = "**Show splitting of dataset**", digits = 2)
 #Create new datasets
 train.dat <- subset(recid.new, subset = (is.train == 1))
 val.dat <- subset(recid.new, subset = (is.val == 1))
@@ -514,20 +490,21 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
 }
 pairs(train.dat[,c("crime_factor", "age_factor", "race_factor", "gender_factor", "priors_count", "juv_fel_count", "juv_misd_count", "juv_other_count", "length_of_stay")], lower.panel = panel.cor)
 ```
-- Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. 
-- `priors_count` and `length_of_stay` along with `length_of_stay` and `crime_factor` seem to have the high correlations relative to the others (0.11)
-- `age_factor` and `juv_other_count` have high correlations relative to the other pairs (0.14)
-- `priors_count` and `crime_factor` have high correlations relative to the other pairs (0.15)
-- `priors_count` and `age_factor` have high correlations relative to the other pairs (0.18)
-- `priors_count` and `juv_fel_count` have high correlations relative to the other pairs (0.19)
-- `juv_misd_count` and `juv_other_count` have high correlations relative to the other paris (0.26)
-- `priors_count` and `juv_misd_count` have high correlations relative to the other pairs (0.27)
+- Based on this correlation chart we see that none of the factors seem to be highly correlated with one another. Pairs with relatively high correlations include: 
+- `priors_count` and `length_of_stay` (0.11)
+- `length_of_stay` and `crime_factor` (0.11)
+- `age_factor` and `juv_other_count` (0.14)
+- `priors_count` and `crime_factor` (0.15)
+- `priors_count` and `age_factor` (0.18)
+- `priors_count` and `juv_fel_count` (0.19)
+- `juv_misd_count` and `juv_other_count` (0.26)
+- `priors_count` and `juv_misd_count` (0.27)
 
 
-Despite the pairs resulting in low correlation, we still attempt PCA to see the impact of the correlations present:
+Despite these low correlations, we still attempt PCA to further examine the relationships between our variables:
 
-- We first want to normalize the data by standardizing each variable to have mean of zero and standard deviation of 1. If we do not do this, we risk having certain variables dominate.  
-- The PCA plot will allow us to see if some of these variables are perhaps correlated enough to merge them in some way  
+- We first normalize the data, standardizing each variable to have mean of zero and standard deviation of 1 to prevent certain variables from dominating.  
+- The PCA plot allows us to see if some of these variables are correlated enough to be merged in some way  
 ```{r}
 recid.new.sub <- recid.new %>% dplyr::select(age, priors_log, length_of_stay, juv_fel_count, juv_misd_count, juv_other_count) %>% as.data.frame()
 recid.new.sub <- na.omit(recid.new.sub)
@@ -535,7 +512,6 @@ recid.new.scaled <- scale(recid.new.sub) # This normalizes the data
 recid.pca <- princomp(recid.new.scaled) # Perform PCA
 recid.pca$loadings = -recid.pca$loadings
 recid.pca$scores = -recid.pca$scores
-#I changed the colors to be ugly but more legible
 biplot(recid.pca,
        scale = 0,
        cex = c(0.8, 1),
@@ -545,11 +521,10 @@ abline(v=0, lty=2, col="grey50")
 abline(h=0, lty=2, col="grey50")
 ```
 
-We started with six-dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each numbered point represents an individual and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, which determine the z1 and z2 values by which it is plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2. 
-While z1 and z2 are abstractions without easily interpretable meaning, they allow us to sort related variables into groups. `Priors_log` appears to be closely related to `juv_fel_count` and `length_of_stay`. Including all three of these in a model may not add much value compared with including just one.  
+We started with six-dimensional data and brought it down to a two-dimensional view. Our biplot shows two things: each numbered point represents an individual and the coordinates are the derived z1 and z2 values from running PCA. Each point has a `juv_other_count` value, an `age` value, a `juv_fel_count` value and so on, which determine the z1 and z2 values by which it is plotted. The top axis shows the factor loadings. It shows the magnitude each variable has of component 1 and 2.  
+  
+While z1 and z2 are abstractions that defy easy interpretation, they allow us to sort related variables into groups. `Priors_log` appears to be closely related to `juv_fel_count` and `length_of_stay`. Including all three of these in a model may not add much value compared with including just one.  
 `Age` is quite independent from the other variables, meaning that it has the potential to add value to a model even if the others are all already present. `Priors_log` and `juv_other_count` are orthogonal, making them a promising combination for our models.  
-
-Unfortunately because of the density of the data the plot is a bit more challenging to read, but it does help highlight correlations that were less visible in the pairs plot.
 
 
 ## **2a: Data Mining Methods and Performance**  
@@ -560,7 +535,7 @@ Given our task of predicting binary outcomes, this is fundamentally a classifica
    2) **Linear Discriminant Analysis (LDA)**: Although LDA generally replaces logistic regression in cases where the outcome has more than two classes, it is also a good idea to compare logistic results to LDA results for binary outcomes. LDA is more stable than logistic regression when the classes are well-separated or the sample size is small. One constraint of the LDA is that the interactions between predictors are assumed to be the same across classes.  
    3) **Quadratic Discriminant Analysis (QDA)**: This is like LDA but more flexible. It works when there are class-based interactions among the predictors, so we will try this out in addition to LDA.    
    4)  **Classification and Regression Trees**: Decision trees are helpful when there are non-linear relationships between variables. Additionally, trees can be interpreted graphically, a major advantage for models requiring public transparency. Trees can approximate human decision-making processes, which makes their interpretation more intuitive to the general public.  However, the disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split. Trees can be poor predictors because they tend to have high variance.  
-   5) **Random Forest (RF)**: This model improves the stability of the decision tree by creating many distinct trees, each of which is given a different combination of variables and observations to use. If our data are well-modeled by decision trees, the random forest should give a lower error rate than a single decision tree. However, while random forests, like trees, do well capturing interactions among variables, they lack the easy interpretability of individual decision trees.
+   5) **Random Forest (RF)**: This model improves the stability of the decision tree by creating many distinct trees, each of which is given a different combination of variables and observations to use. If our data are well-modeled by decision trees, the random forest should give a lower error rate than a single decision tree. However, they lack the easy interpretability of individual decision trees.
 
 Source: [ISLR](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjx8tmdyafpAhVxg3IEHWqjDIsQFjAAegQIAhAB&url=https%3A%2F%2Ffaculty.marshall.usc.edu%2Fgareth-james%2FISL%2FISLR%2520Seventh%2520Printing.pdf&usg=AOvVaw3IIbJOiIiKLgG0eFhvQBp9)
 
@@ -605,16 +580,16 @@ minbic <- which.min(summary(recid.subsets)$bic)
 points(minbic, summary(recid.subsets)$bic[minbic], col = "darkorange", cex = 1, pch = 20)
 ```
   
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to AIC) variables. As the decrease in adjusted AIC is nearly imperceptible between 8 variables and 12 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to AIC) variables. As the decrease in adjusted AIC is quite small between 8 variables and 11 variables, it makes sense to choose 6-8 variables. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below.   
 
 ```{r}
 kable(coef(recid.subsets, 7), format = "markdown", digits = 3, col.names = c("Value"))
 ```
 
 **Model outcome**  
-Based on the findings above, we trained a logistic regression model on the training dataset. Results are below. As expected, every p-value is significant except for `age_factorGreater than 45`, which was included because it is part of the same categorical variable as `age_factorUnder 25`.
+Based on the findings above, we trained a logistic regression model on the training dataset. Results are below. As expected, every p-value is significant except for `age_factorGreater than 45`, which was included because it is part of the same categorical variable as `age_factorLess than 25`.
 
-The logistic regression produces probabilities that an individual will recidivate in the two year time span. This allows us to tune a threshold and observe different model accuracies with different thresholds. The histogram below shows that there's a large range of outcomes from our prediction model.
+The logistic regression produces probabilities that an individual will recidivate in the two year time span. This allows us to tune a threshold and observe different model accuracies with different thresholds. The histogram below shows the broad range of outcomes from our prediction model.
 
 ```{r, echo = FALSE}
 #Copied manually from above
@@ -649,9 +624,9 @@ ggplot(data = as.data.frame(train.pred.logit),
 ```
 
 We then evaluated our classifier's accuracy, along with both specificity and sensitivity. An overview of these measures is below:  
-   -**Accuracy**: This is the percentage of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different. That said, it is the simplest measure of a classifier's performance. The accuracy rate is 1 - the misclassification rate.    
-    -**Specificity**: This is the percentage of non-recidivators who are correctly classified by the model. High specificity is important because it reduces the risk of incarcerating people who pose no risk to society. We consider specificity the most important metric for our all-recidivism (as opposed to violent recidivism) model because we believe false positives (which lead to wrongful incarceration) are more costly than false negatives (which lead to wrongful release).  
-   -**Sensitivity**: This is the percentage of recidivators who are correctly classified by the model. A highly sensitive model would correctly predict most individuals who will recidivate within two years. We consider sensitivity a more important metric for our violent recidivism model than for the full recidivism model.  
+   - **Accuracy**: This is the percentage of predictions that were correct. It is a limited measure of the tool's usefulness because it counts false positives and false negatives in the same way, when their human impact is much different. That said, it is the simplest measure of a classifier's performance. The accuracy rate is 1 - the misclassification rate.    
+    - **Specificity**: This is the percentage of non-recidivators who are correctly classified by the model. High specificity is important because it reduces the risk of incarcerating people who pose no risk to society. We consider specificity the most important metric for our all-recidivism (as opposed to violent recidivism) model because we believe false positives (which lead to wrongful incarceration) are more costly than false negatives (which lead to wrongful release).  
+   - **Sensitivity**: This is the percentage of recidivators who are correctly classified by the model. A highly sensitive model would correctly predict most individuals who will recidivate within two years. We consider sensitivity a more important metric for our violent recidivism model than for the full recidivism model.  
 
 Accuracy, specificity, and sensitivity can be calculated using the confusion matrix below.  
 ``` {r}
@@ -719,8 +694,7 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
 #Changing threshold for next iteration
 logit.threshold <- 0.6
 ```
-In line with our goal of increasing specificity, we now increase the threshold to ``r scales::percent(logit.threshold)``.  
-With a **``r scales::percent(logit.threshold)``** threshold we find the following results:
+In line with our goal of increasing specificity, we now increase the threshold to **``r scales::percent(logit.threshold)``**, producing the following results:
 ```{r, message = FALSE}
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
 confusion.glm = ifelse(glm.logit.predict.val > logit.threshold, "1", "0")
@@ -746,7 +720,7 @@ logit.threshold <- 0.7
 ```
 While the accuracy decreases, the specificity rate `r if_else(logit.threshold > 0.5, "increases", "decreases")`.
 
-The following are the results when setting a **``r scales::percent(logit.threshold)``** threshold:
+The following are the results from a **``r scales::percent(logit.threshold)``** threshold:
 
 ```{r, message = FALSE}
 glm.logit.predict.val = predict(glm.logit, val.dat, type="response")
@@ -770,7 +744,7 @@ kable(tibble(Accuracy = scales::percent(logit.acc.3, accuracy = 0.1),
       format = "markdown")  
 ```
 
-Sensitivity decreases dramatically to `r scales::percent(logit.sens, accuracy = 0.1)`, while Specificity increases slightly to `r scales::percent(logit.spec, accuracy = 0.1)`. 
+Sensitivity decreases dramatically to `r scales::percent(logit.sens.3, accuracy = 0.1)`, while Specificity increases slightly to `r scales::percent(logit.spec.3, accuracy = 0.1)`. 
 
 Of these thresholds, we recommend the `60%` cut point because it has only a slight decrease in accuracy relative to the optimal `46.2%` threshold, but substantially higher specificity, meaning that fewer people will be wrongfully incarcerated.  
 
@@ -794,14 +768,13 @@ recid.lda.pred.train <- predict(recid.lda,
 lda.tab = table(predicted = recid.lda.pred.train$class,
                 actual = train.dat$any_recid_2yr)
 dimnames(lda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(lda.tab)
+kable(lda.tab, caption = "LDA: confusion matrix using training data")
 lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
 lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
 lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
 kable(tibble(Accuracy = scales::percent(lda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(lda.sens, accuracy = 0.1),
-             Specificity = scales::percent(lda.spec, accuracy = 0.1)),
-      format = "markdown")
+             Specificity = scales::percent(lda.spec, accuracy = 0.1)))
 ```
   
 **Model Validation**  
@@ -813,7 +786,7 @@ lda.pred.val <- predict(object = recid.lda, newdata = val.dat, type = "response"
 lda.cv.tab = table(predicted = lda.pred.val$class,
                    actual = val.dat$any_recid_2yr)
 dimnames(lda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(lda.cv.tab)
+kable(lda.cv.tab, caption = "LDA: confusion matrix using validation data")
 lda.cv.acc <- (lda.cv.tab[1,1] + lda.cv.tab[2,2]) / sum(lda.cv.tab)
 lda.cv.sens <- lda.cv.tab[2,2] / sum(lda.cv.tab[,2])
 lda.cv.spec <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
@@ -843,8 +816,8 @@ plot(roc_lda,
 
 #### **2a.3 Quadratic Discriminant Analysis (QDA)**   
 
-**Variable Selection and Model Outcomes**  
-We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes. Results are below.  
+**Model Outcomes**  
+We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes. Validation results are below.  
 ```{r}
 recid.qda <- qda(any_recid_2yr ~
                    crime_factor +
@@ -855,13 +828,15 @@ recid.qda <- qda(any_recid_2yr ~
                    juv_other_bi +
                    length_of_stay,
                  data = train.dat)
+
+#Training data (calculated but not displayed)
 recid.qda.pred.train <- predict(recid.qda,
                           type = "response")
 qda.tab = table(predicted = recid.qda.pred.train$class,
                 actual = train.dat$two_year_recid)
 dimnames(qda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 dimnames(qda.tab)[[2]] = c("No", "Yes")
-kable(qda.tab)
+kable(qda.tab, caption = "QDA: confusion matrix using training data")
 qda.acc <- (qda.tab[1,1] + qda.tab[2,2]) / sum(qda.tab)
 qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
 qda.spec <- qda.tab[1,1] / sum(qda.tab[,1])
@@ -869,9 +844,10 @@ kable(tibble(Accuracy = scales::percent(qda.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.spec, accuracy = 0.1)))
 ```
-
-**Validation of QDA**
+  
+**Model Validation**  
 ```{r}
+#Validation
 qda.cv.pred <- predict(object = recid.qda,
                        newdata = val.dat,
                        type = "response")
@@ -879,16 +855,13 @@ qda.cv.tab = table(predicted = qda.cv.pred$class,
                    actual = val.dat$two_year_recid)
 dimnames(qda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 dimnames(qda.cv.tab)[[2]] = c("No", "Yes")
-kable(qda.cv.tab)
+kable(qda.cv.tab, caption = "QDA: confusion matrix using validation data")
 qda.cv.acc <- (qda.cv.tab[1,1] + qda.cv.tab[2,2]) / sum(qda.cv.tab)
 qda.cv.sens <- qda.cv.tab[2,2] / sum(qda.cv.tab[,2])
 qda.cv.spec <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
 kable(tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
              Sensitivity = scales::percent(qda.cv.sens, accuracy = 0.1),
              Specificity = scales::percent(qda.cv.spec, accuracy = 0.1)))
-##TESTING DIFFERENT THRESHOLDS (DELETE IF UNUSED)
-#qda.cv.tab <- table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.218),
-#                    actual = val.dat$two_year_recid)
 ```
 
 The QDA model correctly categorizes only 62.6% of individuals based on the default threshold of 50%. Although improvements can be made by using a lower threshold (the ROC curve suggests that 21.8% is optimal), the AUC of the QDA model is lower than that of other models.  
@@ -915,7 +888,7 @@ plot(roc_qda,
 Here, we are trying both classification trees (since this is a classification problem) and regression trees, in which we treat the recidivism outcome variable as a numeric 0/1 response. The use of regression trees helps us create ROC curves and better understand the data.  
 
 **Decision Tree: Variable Selection**  
-The recursive prediction methods used in decision trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables except for `priors_log`, `juv_fel_bi`, `juv_other_bi`, `juv_misd_bi`, and `age_factor` because they are redundant for decision trees. This also applies to random forests. 
+The recursive prediction methods used in decision trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables except for `priors_log`, `juv_fel_bi`, `juv_other_bi`, `juv_misd_bi`, and `age_factor` because they are redundant for decision trees. This also applies to random forests, for which redundant variables can cause serious problems. 
 
 **Model: Classification Tree**  
 ```{r}
@@ -940,7 +913,7 @@ However, this is only the first step in the process. We must next re-run the mod
 tree.pred=predict(tree.recid, val.dat, type="class")
 tree.pred.tab <- table(predicted = tree.pred, actual = val.dat$any_recid_2yr)
 dimnames(tree.pred.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(tree.pred.tab)
+kable(tree.pred.tab, caption = "Classification Tree: confusion matrix using validation data")
 tree.pred.errors = table(tree.pred,val.dat$any_recid_2yr)[2,1] +
   table(tree.pred,val.dat$any_recid_2yr)[1,2]
 ```
@@ -1076,8 +1049,8 @@ tree.vals <- coords(roccurve.trpart, "best", ret=c("threshold", "specificity", "
 
 As expected, the AUC for the regression tree is the lowest among our models. The regression tree allows for more nuance than the classification tree, with six threshold options (including all-or-nothing options).  
 For instance, a threshold of 0.62 results in a tree that expects individuals to recidivate if and only if:  
-- They have at least 3 priors and are under 32 years old  
-- They have at least 7 priors and are at least 32 years old  
+ - They have at least 3 priors and are under 32 years old  
+ - They have at least 7 priors and are at least 32 years old  
 Using those criteria, only 41.6% of recidivators would be correctly identified, but 85.4% of non-recidivators would be correctly identified as low threats.  
 
 
@@ -1098,11 +1071,11 @@ recid.rf =randomForest(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi
 
 The confusion matrix for our random forest created using training data is below:
 ```{r}
-kable(recid.rf$confusion)
+kable(recid.rf$confusion, caption = "Random Forest: confusion matrix using training data")
 rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(train.dat)
 ```
-
-Surprisingly, this matrix shows that the overall accuracy rate for this random forest is ``r scales::percent(1 - rf.error, accuracy = 0.1)``, which is not substantially better than our other models.
+  
+Surprisingly, this matrix shows that the overall accuracy rate for this random forest is ``r scales::percent(1 - rf.error, accuracy = 0.1)``, which is worse than our individual classification tree.
 
 To increase transparency, the plots below show the importance of each variable in the random forest model. Looking at the plot on the right, a small Gini coefficient indicates increased node purity. We see that `age` decreases the Gini coefficient the most, followed by `priors_count`, `length_of_stay`, and `race_factor`.  The least meaningful variables are the juvenile records. We chose to include race in our model because models that exclude race are not necessarily race-neutral, as seen with the COMPAS model. We will assess discrimination later in this report.
 
@@ -1111,7 +1084,7 @@ varImpPlot(recid.rf, main="Variable Importance by Factor")
 ```
 
 
-We also plotted ROC curves for the random forest, as shown below.
+We also plotted an ROC curve for the random forest, as shown below.
 ```{r, warnings = FALSE}
 rf.predict <- as.data.frame(predict(recid.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
@@ -1172,7 +1145,7 @@ minbic <- which.min(summary(recid.vio.subsets)$bic)
 points(minbic, summary(recid.vio.subsets)$bic[minbic], col = "green3", cex = 1, pch = 20)
 ```
   
-Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to Cp) variables. As the increase in BIC is small between 4 and 7 variables, we chose to use the 7 variables specified in the Mallow's CP model as ideal. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below. Unlike the full recidivism dataset, race was included in this model - though only for Hispanic people. We left the full race variable in the dataset for the original logistic regression below. Our choice to leave race in the model is informed by the understanding that we are predicting whether people will be caught recidivating, rather than true recidivism, given racial bias in the policing system.  
+Depending on the metric used, the best-performing model uses somewhere between ``r minbic`` (according to BIC) and ``r mincp`` (according to CP) variables. We chose to use the 7 variables that minimize Mallow's CP. After examining the models in this range, we went with the following 7 variables, presented with their coefficients below. Unlike the full recidivism dataset, race was included in this model - though only for Hispanic people. We left the full race variable in the dataset for the original logistic regression below. Our choice to leave race in the model is informed by the understanding that we are predicting whether people will be caught recidivating, rather than true recidivism, given racial bias in the policing system.  
 
 ```{r}
 kable(coef(recid.vio.subsets, 7), format = "markdown", digits = 3, col.names = c("Value"))
@@ -1277,13 +1250,14 @@ recid.vio.lda <- lda(vio_recid_2yr ~
 #Results are currently for the training data
 recid.vio.lda.pred.train <- predict(recid.vio.lda,
                           type = "response")
-#table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.218),
-#                    actual = val.dat$two_year_recid)
-rate.vio2 <- mean(train.dat$vio_recid_2yr == "Yes")
+rate.vio2 <- mean(train.dat$vio_recid_2yr == "Yes") #Violent recidivism rate in training data
 lda.tab = table(predicted = (recid.vio.lda.pred.train$posterior[,"Yes"] > rate.vio2),
                 actual = train.dat$vio_recid_2yr)
 dimnames(lda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(lda.tab)
+kable(lda.tab,
+      caption = paste("**LDA: confusion matrix using training data:**",
+                               scales::percent(rate.vio2, 0.1),
+                               "threshold"))
 lda.acc <- (lda.tab[1,1] + lda.tab[2,2]) / sum(lda.tab)
 lda.sens <- lda.tab[2,2] / sum(lda.tab[,2])
 lda.spec <- lda.tab[1,1] / sum(lda.tab[,1])
@@ -1300,7 +1274,10 @@ lda.pred.val <- predict(object = recid.vio.lda, val.dat, type = "response")
 lda.cv.tab = table(predicted = (lda.pred.val$posterior[,"Yes"] > rate.vio2),
                    actual = val.dat$vio_recid_2yr)
 dimnames(lda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(lda.cv.tab)
+kable(lda.cv.tab,
+      caption = paste("**LDA: confusion matrix using validation data:**",
+                      scales::percent(rate.vio2, 0.1),
+                      "threshold"))
 lda.cv.acc.vio <- (lda.cv.tab[1,1] + lda.cv.tab[2,2]) / sum(lda.cv.tab)
 lda.cv.sens.vio <- lda.cv.tab[2,2] / sum(lda.cv.tab[,2])
 lda.cv.spec.vio <- lda.cv.tab[1,1] / sum(lda.cv.tab[,1])
@@ -1341,7 +1318,9 @@ recid.vio.qda.pred.train <- predict(recid.vio.qda,
 qda.tab = table(predicted = (recid.vio.qda.pred.train$posterior[,"Yes"] > rate.vio2),
                 actual = train.dat$two_year_recid)
 dimnames(qda.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(qda.tab)
+kable(qda.tab, caption = paste("**QDA: confusion matrix using training data:**",
+                               scales::percent(rate.vio2, 0.1),
+                               "threshold"))
 qda.acc <- (qda.tab[1,1] + qda.tab[2,2]) / sum(qda.tab)
 qda.sens <- qda.tab[2,2] / sum(qda.tab[,2])
 qda.spec <- qda.tab[1,1] / sum(qda.tab[,1])
@@ -1359,7 +1338,9 @@ qda.cv.tab = table(predicted = (qda.cv.pred$posterior[,"Yes"] > rate.vio2),
                    actual = val.dat$two_year_recid)
 dimnames(qda.cv.tab)[[1]] = c("No (Predicted)","Yes (Predicted)")
 dimnames(qda.cv.tab)[[2]] = c("No", "Yes")
-kable(qda.cv.tab)
+kable(qda.cv.tab, caption = paste("**QDA: confusion matrix using validation data:**",
+                                  scales::percent(rate.vio2, 0.1),
+                                  "threshold"))
 qda.cv.acc.vio <- (qda.cv.tab[1,1] + qda.cv.tab[2,2]) / sum(qda.cv.tab)
 qda.cv.sens.vio <- qda.cv.tab[2,2] / sum(qda.cv.tab[,2])
 qda.cv.spec.vio <- qda.cv.tab[1,1] / sum(qda.cv.tab[,1])
@@ -1383,7 +1364,7 @@ plot(roc_qda.vio,
 
 #### **2a.4V Classification And Regression Tree**  
 
-The output shows a classification tree that predicts that nobody will violently recidivate. It is a bit odd that the tree still splits on priors, but the regression tree sheds some light on that. Matching the classification tree, both branches lead to "no", but the ROC curve shows us that this is because the model used an inappropriate 50% cutoff.  
+The output shows a classification tree that predicts that nobody will violently recidivate. It is a bit odd that the tree still splits on priors, but the regression tree sheds some light on that. Both branches of the classification tree lead to "no", but the ROC curve shows us that this is because the model used an inappropriate 50% cutoff.  
 
 ```{r}
 #CLASSIFICATION TREE -- direct copy/paste
@@ -1431,7 +1412,7 @@ plot.roc(roccurve.rpart.vio,
 tree.vals.vio <- coords(roccurve.rpart.vio, "best", ret = c("threshold", "specificity", "sensitivity", "accuracy"))
 ```
 
-This is clearly not a particularly useful model. Even with the best threshold, sensitivity and specificity are quite low.
+Even with the best threshold, sensitivity and specificity are quite low. This is clearly not a particularly useful model.  
 
 #### **2a.5V Random Forest**  
 
@@ -1447,11 +1428,13 @@ recid.vio.rf =randomForest(formula = update(fullmodelvio, ~ . -
                            ,importance=TRUE #keeping this from book
 )
 ``` 
+
 The confusion matrix for our random forest created using training data is below:
 ```{r}
-kable(recid.vio.rf$confusion[,1:2])
-rf.vio.error = (recid.vio.rf$confusion[2,1] + recid.vio.rf$confusion[1,2]) /nrow(train.dat)
+kable(recid.vio.rf$confusion[,1:2], caption = "Random Forest: confusion matrix using training data")
+rf.vio.error = (recid.vio.rf$confusion[2,1] + recid.vio.rf$confusion[1,2]) /nrow(train.dat)  
 ```
+  
 This matrix shows that the overall error rate for this random forest is ``r scales::percent(rf.vio.error, accuracy = 0.1)``.  
 
 ```{r}
@@ -1459,7 +1442,7 @@ varImpPlot(recid.vio.rf, main="Variable Importance by Factor")
 ```
 
 
-We also plotted ROC curves for the random forest, as shown below.
+We also plotted an ROC curve for the random forest, as shown below.
 ```{r, warnings = FALSE}
 rf.vio.predict <- as.data.frame(predict(recid.vio.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
@@ -1809,7 +1792,7 @@ ProPublica didn't analyze the COMPAS for differences by gender, so we added this
 
 **Our tool**  
 
-From the Gender table below we see that our model strongly favors giving female individuals a lower recidivism risk rating. The False Negative rate of ``r scales::percent(FN.any.female, 0.1)`` is especially telling, indicating that our model correctly identifies only ``r round(100*(1-FN.any.female))`` of every hundred recidivating women. Our model's sensitivity rate for males is ``r round((1 - FN.any.male) / (1 - FN.any.female), 1)`` times higher than for females, meaning it is ``r round((1 - FN.any.male) / (1 - FN.any.female), 1)`` times more likely to successfully detect risk in men than in women.  
+From the Gender table below we see that our model strongly favors giving female individuals a lower recidivism risk rating. The False Negative rate of ``r scales::percent(FN.any.female, 0.1)`` is especially telling, indicating that our model correctly identifies only ``r round(100*(1-FN.any.female))`` of every hundred recidivating women.   
 
 
 | Our RAI: Any Recidivism                                          |           Female | Male | 
@@ -1960,7 +1943,6 @@ FP.vio.age3 <- confusions.pred.test.vio.age3["Yes (Predicted)", "No"] / sum(conf
 FN.vio.age3 <-  confusions.pred.test.vio.age3["No (Predicted)", "Yes"] / sum(confusions.pred.test.vio.age3[,"Yes"])
 ```
   
-One statistic that stands out in our violent recidivism table is the ``r scales::percent(FN.vio.age3)`` false negative rate for people in the `45 and above` category. This happened because only ``r sum(confusions.pred.test.vio.age3[,"Yes"])`` older individuals in our test data (``r scales::percent(sum(confusions.pred.test.vio.age3[,"Yes"]) / sum(confusions.pred.test.vio.age3), 0.1)`` of older individuals) were violent recidivators. While it does not reflect well on our model that it missed all of them, the rate shown only reflects ``r sum(confusions.pred.test.vio.age3[,"Yes"])`` errors.
 
 | Our RAI: Violent Recidivism                                          |           Under 25 | 25 - 45 |       45 and above|
 |------------------------------------------------------------------|-----------------|------------------|--------------|
@@ -2017,12 +1999,12 @@ Re-visiting the charts above, our accuracy rate is higher than the COMPAS for an
 | Model for any recidivism                   |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
 | **COMPAS Model **                          |**`r scales::percent(compas.acc.any, 0.1)`** |**`r scales::percent(compas.sens.any, 0.1)`** |**`r scales::percent(compas.spec.any, 0.1)`** |
-| <span style ="color: #4D9DE0;"> Logistic regression |<span style ="color: #4D9DE0;">`r scales::percent(logit.acc, 0.1)`</span> |<span style ="color: #4D9DE0;"> `r scales::percent(logit.sens, 0.1)`</span>   |<span style ="color: #4D9DE0;">`r scales::percent(logit.spec)`</span> |  
+| <span style ="color: #4D9DE0;"> *Logistic regression* |<span style ="color: #4D9DE0;">*`r scales::percent(logit.acc, 0.1)`*</span> |<span style ="color: #4D9DE0;"> *`r scales::percent(logit.sens, 0.1)`*</span>   |<span style ="color: #4D9DE0;">*`r scales::percent(logit.spec)`*</span> |  
 
 | Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
 | **COMPAS Model **                          |**`r scales::percent(compas.acc.vio, 0.1)`** |**`r scales::percent(compas.sens.vio, 0.1)`** |**`r scales::percent(compas.spec.vio, 0.1)`** |
-|<span style ="color: #4D9DE0;"> Logistic regression</span>|<span style ="color: #4D9DE0;">`r scales::percent(logit.acc.vio, 0.1)`</span> |<span style ="color: #4D9DE0;">`r scales::percent(logit.sens.vio, 0.1)`</span> |<span style ="color: #4D9DE0;">`r scales::percent(logit.spec.vio, 0.1)`</span>|  
+|<span style ="color: #4D9DE0;"> *Logistic regression*</span>|<span style ="color: #4D9DE0;">*`r scales::percent(logit.acc.vio, 0.1)`*</span> |<span style ="color: #4D9DE0;">*`r scales::percent(logit.sens.vio, 0.1)`*</span> |<span style ="color: #4D9DE0;">*`r scales::percent(logit.spec.vio, 0.1)`*</span>|  
 
 ```{r, warning = FALSE, message = FALSE}
 # #Create table
@@ -2132,7 +2114,7 @@ kable(recid.new%>%
 kable(recid.new%>%
   count(juv_misd_bi, juv_misd_count), caption = "**Yes/No version of Juvenile Misd.**")
 kable(recid.new%>%
-  count(juv_misd_bi, juv_misd_count), caption = "**Yes/No version of Juvenile Other Events**")
+  count(juv_other_bi, juv_other_count), caption = "**Yes/No version of Juvenile Other Events**")
 ```
 
 The table below shows variables that we dropped because they were redundant: 
