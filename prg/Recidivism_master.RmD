@@ -1419,6 +1419,7 @@ plot.roc(roccurve.rpart.vio,
          print.thres.pattern = "%.3f\n(%.1f%%,\n%.1f%%)",
          asp = 0,
          col = roccurve.rpart.col)
+tree.vals.vio <- coords(roccurve.rpart.vio, "best", ret = c("threshold", "specificity", "sensitivity", "accuracy"))
 ```
 
 This is clearly not a particularly useful model. Even with the best threshold, sensitivity and specificity are quite low.
@@ -1462,6 +1463,7 @@ plot.roc(roccurve.vio.rpart,
          print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
          col = roccurve.rpart.col,
          asp = 0)
+rf.vals.vio <- coords(roccurve.vio.rpart, "best", ret = c("threshold", "specificity", "sensitivity", "accuracy"))
 ```
 
 #### **2b Model Decisions**  
@@ -1490,16 +1492,18 @@ plot(roccurve.logit,
      col = roccurve.logit.col,
      lty = 11,
      asp = 0,
-     main = "Comparing ROC Curves",
-     print.auc = TRUE)
+     main = "Comparing ROC Curves (All Recidivism)",
+     print.auc = TRUE,
+     print.auc.pattern = "AUC:\n%.1f")
+# print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)"
 #LDA ROC
-plot(roc_lda, col = roc_lda.col, lwd = 3, print.auc = TRUE, add = TRUE)
+plot(roc_lda, col = roc_lda.col, lwd = 3, print.auc = TRUE, print.auc.pattern = "\n\n%.1f",  add = TRUE)
 #QDA ROC
-plot (roc_qda, col = roc_qda.col, lty = 10, print.auc = TRUE, add = TRUE)
+plot (roc_qda, col = roc_qda.col, lty = 10, print.auc = TRUE, print.auc.pattern = "\n\n\n%.1f", add = TRUE)
 #Tree ROC
-plot (roccurve.trpart, col = roccurve.trpart.col, lty = 3, print.auc = TRUE, add = TRUE)
+plot (roccurve.trpart, col = roccurve.trpart.col, lty = 3, print.auc = TRUE, print.auc.pattern = "\n\n\n\n%.1f", add = TRUE)
 #Random Forest ROC
-plot (roccurve.rpart, col = roccurve.rpart.col, lty = 2, print.auc = TRUE, add = TRUE)
+plot (roccurve.rpart, col = roccurve.rpart.col, lty = 2, print.auc = TRUE, print.auc.pattern = "\n\n\n\n\n%.1f", add = TRUE)
 legend(x = 42,
        y = 50,
        legend = c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"),lty = c(1,1), 
@@ -1514,14 +1518,43 @@ legend(x = 42,
 
 | Model for violent recidivism               |  Accuracy      | Sensitivity      | Specificity |  
 |--------------------------------------------|----------------|------------------|-------------|  
-| Logistic regression                        |                |                  |             |  
-| Linear Discriminant Analysis (LDA)         | |  ||  
-| Quadratic Discriminant Analysis (QDA)      | |  ||  
-| Decision Tree                              |                |                  |             |  
-| Random Forest (RF)                         |                |                  |             |  
-
-
-
+| Logistic regression                        |`r scales::percent(logit.acc.vio, 0.1)` |`r scales::percent(logit.sens.vio, 0.1)` |`r scales::percent(logit.spec.vio, 0.1)` |  
+| Linear Discriminant Analysis (LDA)         |`r scales::percent(lda.cv.acc.vio, 0.1)` |`r scales::percent(lda.cv.sens.vio, 0.1)` |`r scales::percent(lda.cv.spec.vio, 0.1)`|  
+| Quadratic Discriminant Analysis (QDA)      |`r scales::percent(qda.cv.acc.vio, 0.1)` |`r scales::percent(qda.cv.sens.vio, 0.1)` |`r scales::percent(qda.cv.spec.vio, 0.1)`|  
+| Decision Tree                              |`r round(tree.vals.vio$accuracy, 1)`% |`r round(tree.vals.vio$sensitivity, 1)`% |`r round(tree.vals.vio$specificity, 1)`% |  
+| Random Forest (RF)                         |`r round(rf.vals.vio$accuracy, 1)`% | `r round(rf.vals.vio$sensitivity, 1)`% | `r round(rf.vals.vio$specificity, 1)`% |  
+  
+```{r}
+### Comparing Violent ROC charts
+#Logistic ROC
+plot(roccurve.vio,
+     grid = TRUE,
+     col = roccurve.logit.col,
+     lty = 11,
+     asp = 0,
+     main = "Comparing ROC Curves (Violent Recidivism)",
+     print.auc = TRUE,
+     print.auc.pattern = "AUC:\n%.1f")
+# print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)"
+#LDA ROC
+plot(roc_lda.vio, col = roc_lda.col, lwd = 3, print.auc = TRUE, print.auc.pattern = "\n\n%.1f",  add = TRUE)
+#QDA ROC
+plot (roc_qda.vio, col = roc_qda.col, lty = 10, print.auc = TRUE, print.auc.pattern = "\n\n\n%.1f", add = TRUE)
+#Tree ROC
+plot (roccurve.rpart.vio, col = roccurve.trpart.col, lty = 3, print.auc = TRUE, print.auc.pattern = "\n\n\n\n%.1f", add = TRUE)
+#Random Forest ROC
+plot (roccurve.vio.rpart, col = roccurve.rpart.col, lty = 2, print.auc = TRUE, print.auc.pattern = "\n\n\n\n\n%.1f", add = TRUE)
+legend(x = 42,
+       y = 50,
+       legend = c("Logistic Regression", "LDA", "QDA", "Regression Tree", "Random Forest"),lty = c(1,1), 
+       lwd = c(2,2),
+       col = c(roccurve.logit.col,
+               roc_lda.col,
+               roc_qda.col,
+               roccurve.trpart.col,
+               roccurve.rpart.col))
+      
+```
 
 #### **2c: Demographic analysis of the best version of each model:**  
 After choosing the best version of each model, we assessed the potential for prejudice. Our goal was to replicate Pro-Publica's chart for each of these metrics included in the introduction. 
@@ -1664,4 +1697,7 @@ kable(recid.all %>%
 kable(recid.all %>%
         count(race_factor, race))
 ```
+
+
+<span style ="color: red;"> Just a reminder that this should be moved to before model picking, or if we are keeping it at the very end, this should be explained and the table specifically for violent-recidivism should be pasted below this section.</span> 
 
