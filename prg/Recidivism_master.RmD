@@ -323,30 +323,12 @@ grid.arrange(ranking.all, ranking.vio, ncol = 2)
 #### **1e: Accuracy of COMPAS Predictions**  
 
 **Overall summary of COMPAS predictions**
-The confusion matrices below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
+The confusion matrix below shows the prediction abilities of the COMPAS, when people were divided into the categories of "low" and "medium/high" for total recidivism. 
 ```{r, warning = FALSE, message = FALSE}
 #Create table
 confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
 dimnames(confusions.compas.any)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.compas.any, caption = "Confusion matrix for the COMPAS: any recidivism")
-# compas.acc <- sum(diag(confusions.compas.any)) / sum(confusions.compas.any)
-# compas.sens <- confusions.compas.any["Yes (Predicted)", "Yes"] / sum(confusions.compas.any[,"Yes"])
-# compas.spec <- confusions.compas.any["No (Predicted)", "No"] / sum(confusions.compas.any[,"No"])
-# kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
-#              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
-#              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
-#       format = "markdown", caption = "Success of the COMPAS instrument")  
-#Same for violent recidivism
-confusions.compas.vio = table(predicted = recid.new$v_score_factor, actual = recid.new$vio_recid_2yr)
-dimnames(confusions.compas.vio)[[1]] = c("No (Predicted)","Yes (Predicted)")
-kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: violent recidivism")
-# compas.acc <- sum(diag(confusions.compas.vio)) / sum(confusions.compas.vio)
-# compas.sens <- confusions.compas.vio["Yes (Predicted)", "Yes"] / sum(confusions.compas.vio[,"Yes"])
-# compas.spec <- confusions.compas.vio["No (Predicted)", "No"] / sum(confusions.compas.vio[,"No"])
-# kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
-#              Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
-#              Specificity = scales::percent(compas.spec, accuracy = 0.1)),
-#       format = "markdown", caption = "Success of the COMPAS instrument")  
 ```
 
 **Demographic summary of COMPAS predictions**
@@ -475,7 +457,7 @@ grid.arrange(age_factor.bi.all.dec, age_factor.bi.all.recid, ncol = 2)
 **Splitting Data**
 Prior to starting the data mining process, we randomly split the data into training, validation, and test sets. 
 
-Here we create a column `rand.split` where `train.dat` is a subset of the data whose rand.split value is 0 (70% of the recid.new dataset); `val.dat` is a subset of the data whose rand.split value is 2 (20% of the recid.new dataset); and `test.dat` is a subset of the data whose rand.split value is 1 (10% of the recid.new dataset). Using the `sample` function in r ensures this division is random, and we have set a seed of 12 so that the random division will give the same results when the code is re-run. We also create a dataset that combines training/validation data because certain r functions run cross-validation automatically. For those functions, we only want to exclude test data. 
+Here we create a column `rand.split` where `train.dat` is a subset of the data whose rand.split value is 0 (70% of the recid.new dataset); `val.dat` is a subset of the data whose rand.split value is 2 (20% of the recid.new dataset); and `test.dat` is a subset of the data whose rand.split value is 1 (10% of the recid.new dataset). Using the `sample` function in r ensures this division is random, and we have set a seed of 12 so that the random division will give the same results when the code is re-run.
 ```{r, message = FALSE}
 #Set seed at 12 b/c we're group 12
 set.seed(12)
@@ -493,7 +475,6 @@ kable(recid.new %>%
 train.dat <- subset(recid.new, subset = (is.train == 1))
 val.dat <- subset(recid.new, subset = (is.val == 1))
 test.dat <- subset(recid.new, subset = (is.test == 1))
-trainval.dat <- subset(recid.new, subset = (is.train == 1 | is.val == 1))
 ```
 
 An overview of datasets is below:   
@@ -504,7 +485,6 @@ An overview of datasets is below:
 | train.dat       | Training models              |  `r nrow(train.dat)`    |  
 | val.dat         | Validating models            |  `r nrow(val.dat)`      |  
 | test.dat        | New data for the final model |  `r nrow(test.dat)`     |  
-| trainval.dat    | Training & validation data   |  `r nrow(trainval.dat)` |  
 
 
 
@@ -563,16 +543,15 @@ While z1 and z2 are abstractions without easily interpretable meaning, they allo
 Unfortunately because of the density of the data the plot is a bit more challenging to read, but it does help highlight correlations that were less visible in the pairs plot.
 
 
-#### **2a: Data Mining Methods and Performance**
-<span style = "color: red;">Edit writing if time allows</span>  
+#### **2a: Data Mining Methods and Performance**  
 **Possible models**  
  
 Given our task of predicting binary outcomes, this is fundamentally a classification problem. We decided to pursue the following methods:  
    1) **Logistic regression**:  This classification method assesses the probability that a person belongs to a given category -- in this case the probability an individual recidivates within 2 years. Logistic regressions are commonly used when the dependent variable is binary.   
    2) **Linear Discriminant Analysis (LDA)**: Although LDA generally replaces logistic regression in cases where the outcome has more than two classes, it is also a good idea to compare logistic results to LDA results for binary outcomes. LDA is more stable than logistic regression when the classes are well-separated or the sample size is small. One constraint of the LDA is that the interactions between predictors are assumed to be the same across classes.  
    3) **Quadratic Discriminant Analysis (QDA)**: This is like LDA but more flexible. It works when there are class-based interactions among the predictors, so we will try this out in addition to LDA.    
-   4)  **Classification and Regression Trees**: Decision trees are helpful when there are non-linear relationships between variables. Additionally, trees can be interpreted graphically, a major advantage for models requiring public transparency. Trees can approximate human decision-making processes, which makes their interpretation more intuitive to the general public.  However, the disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split. Trees can be poor predictors because they tend to have high variance.
-   5) **Random Forest (RF)**: This model improves the stability of the decision tree by  creating many different trees, each of which is given different a different combination of variables and observations to use. If our data are well-modeled by decision trees, the random forest should give a lower error rate than a single decision tree. However, while random forests, like trees, do well capturing interactions among variables, random forests lack the easy interpretability of individual decision trees.
+   4)  **Classification and Regression Trees**: Decision trees are helpful when there are non-linear relationships between variables. Additionally, trees can be interpreted graphically, a major advantage for models requiring public transparency. Trees can approximate human decision-making processes, which makes their interpretation more intuitive to the general public.  However, the disadvantage is that trees are unstable. That is, a few new observations can completely change which variable is being used for the first split. Trees can be poor predictors because they tend to have high variance.  
+   5) **Random Forest (RF)**: This model improves the stability of the decision tree by creating many distinct trees, each of which is given a different combination of variables and observations to use. If our data are well-modeled by decision trees, the random forest should give a lower error rate than a single decision tree. However, while random forests, like trees, do well capturing interactions among variables, they lack the easy interpretability of individual decision trees.
 
 Source: [ISLR](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjx8tmdyafpAhVxg3IEHWqjDIsQFjAAegQIAhAB&url=https%3A%2F%2Ffaculty.marshall.usc.edu%2Fgareth-james%2FISL%2FISLR%2520Seventh%2520Printing.pdf&usg=AOvVaw3IIbJOiIiKLgG0eFhvQBp9)
 
@@ -673,7 +652,6 @@ confusion.glm = ifelse(train.pred.logit > 0.5, "1", "0")
 confusions.pred.train = table(confusion.glm, train.dat$any_recid_2yr)
 dimnames(confusions.pred.train)[[1]] = c("No (Predicted)","Yes (Predicted)")
 kable(confusions.pred.train, caption = "Logistic regression: confusion matrix using training data")
-kable(round(1- sum(diag(confusions.pred.train)) / sum(confusions.pred.train), 2), col.names = "Misclassification Rate (with train.dat):")
 ```
 When applied to the training data, this model has an accuracy rate of ``r scales::percent(sum(diag(confusions.pred.train)) / sum(confusions.pred.train), accuracy = 0.1)``.  
 
@@ -783,7 +761,7 @@ kable(tibble(Accuracy = scales::percent(logit.acc, accuracy = 0.1),
 
 Sensitivity decreases dramatically to `r scales::percent(logit.sens, accuracy = 0.1)`, while Specificity increases slightly to `r scales::percent(logit.spec, accuracy = 0.1)`. 
 
-Of these thresholds, we recommend the `60%` cut point because it has only a slight decrease in accuracy relative to the optimal `46.2%` model, but substantially higher specificity, meaning that fewer people will be wrongfully incarcerated.  
+Of these thresholds, we recommend the `60%` cut point because it has only a slight decrease in accuracy relative to the optimal `46.2%` threshold, but substantially higher specificity, meaning that fewer people will be wrongfully incarcerated.  
 
 ***2a.2 Linear Discriminant Analysis (LDA)***  
 
@@ -833,6 +811,8 @@ kable(tibble(Accuracy = scales::percent(lda.cv.acc, accuracy = 0.1),
              Specificity = scales::percent(lda.cv.spec, accuracy = 0.1)))
 ```
 
+The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value well above 50% meaning that the LDA model is a reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%. The optimal LDA model has a specificity of 79.5%, which is higher than that of the optimal logistic model, despite similar AUCs. Therefore, we are inclined to recommend LDA over logistic regression.  
+
 ```{r}
 ## Drop an ROC like it's hot
 roc_lda <- roc(response = val.dat$any_recid_2yr,
@@ -848,12 +828,11 @@ plot(roc_lda,
      print.thres.pattern = "%.3f (%.1f%%, %.1f%%)")
 ```
 
-The ROC chart shows that the AUC score is ``r round(auc(roc_lda),1)``%, a value greater than 0.5 meaning that the LDA model is reasonable measure of separability. Furthermore, it shows us that the optimal threshold for the LDA model is at 51.9%. The optimal LDA model has a specificity of 79.5%, which is higher than that of the optimal logistic model, despite similar AUCs. Therefore, we are inclined to recommend LDA over logistic regression. 
 
 
 ***2a.3 Quadratic Discriminant Analysis (QDA)***  
 **Variable Selection and Model Outcomes**  
-We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes.  
+We then checked to see if QDA could outperform LDA -- which might be the case if covariation between input variables were different across classes. Results are below.  
 ```{r}
 recid.qda <- qda(any_recid_2yr ~
                    crime_factor +
@@ -899,7 +878,11 @@ kable(tibble(Accuracy = scales::percent(qda.cv.acc, accuracy = 0.1),
 ##TESTING DIFFERENT THRESHOLDS (DELETE IF UNUSED)
 #qda.cv.tab <- table(predicted = (qda.cv.pred$posterior[,"Yes"] > 0.218),
 #                    actual = val.dat$two_year_recid)
+```
 
+The QDA model correctly categorizes only 62.6% of individuals based on the default threshold of 50%. Although improvements can be made by using a lower threshold (the ROC curve suggests that 21.8% is optimal), the AUC of the QDA model is lower than that of other models.  
+
+```{r}
 ## Drop that ROC like it's hot
 roc_qda <- roc(response = val.dat$any_recid_2yr,
                predictor = qda.cv.pred$posterior[,"Yes"],
@@ -915,20 +898,18 @@ plot(roc_qda,
 #auc(roc_qda)
 ```
   
-The QDA model correctly categorizes only 62.6% of individuals based on the default threshold of 50%. Although improvements can be made by using a lower threshold (the ROC curve suggests that 21.8% is optimal), the AUC of the QDA model is lower than that of other models.
-
-
 
 ***2a.4 Classification And Regression Tree***  
 Here, we are trying both classification trees (since this is a classification problem) and regression trees, in which we treat the recidivism outcome variable as a numeric 0/1 response. The use of regression trees helps us create ROC curves and better understand the data.  
 
-**Classification tree: Variable Selection**  
-The recursive prediction methods used in decision trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables. The one exception is that since our goal using trees is to make the output accessible to stakeholders, we are avoiding using the log of priors variable.  
+**Decision Tree: Variable Selection**  
+The recursive prediction methods used in decision trees will automatically select variables for us. Therefore, we will feed it the full model with all possible input variables except for `priors_log`, `juv_fel_bi`, `juv_other_bi`, `juv_misd_bi`, and `age_factor` because they are redundant for decision trees. This also applies to random forests. 
 
 **Model: Classification Tree**  
 ```{r}
 #Run original CLASSIFICATION tree
-tree.recid <- tree(formula = update(fullmodel, ~ . - priors_log), data = train.dat)
+tree.recid <- tree(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi - juv_other_bi - juv_misd_bi - age_factor),
+                   data = train.dat)
 #Create summary object
 summary.tree.recid <- summary(tree.recid)
 ```
@@ -1023,7 +1004,7 @@ text(reg.tree.recid, pretty = 0)
 We also tried the regression tree using the `rpart` function, which allowed for a more informative picture. 
 ```{r}
 #Create model using rpart function and training dataset
-tree.recid.rpart.train <- rpart(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi - juv_other_bi - juv_misd_bi),
+tree.recid.rpart.train <- rpart(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi - juv_other_bi - juv_misd_bi - age_factor),
                                 data = train.dat)
 #Output pretty picture
 tree.recid.rpart.train.pretty <- as.party(tree.recid.rpart.train)
@@ -1089,11 +1070,10 @@ Using those criteria, only 41.6% of recidivators would be correctly identified, 
 Building on the decision tree work above, we now assess the data using random forests. Although these models are substantially less user-friendly than single trees, they are helpful for reducing variance and are much more flexible than individual trees. The idea behind random forests is the software randomly selects different predictors for each split, and this process happens multiple times. The trees are decorrelated from each other because the software tries different splitting variables at different times.
 
 
-Based on the `randomForest` author's [documentation](https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr), cross-validation is not needed, since it is run automatically. Therefore, we are combining our training and validation data and using `trainval.dat`.  
 
 ```  {r}
-recid.rf =randomForest(formula = update(fullmodel, ~ . - priors_log- juv_fel_bi - juv_other_bi - juv_misd_bi),
-                       data    = trainval.dat,
+recid.rf =randomForest(formula = update(fullmodel, ~ . - priors_log - juv_fel_bi - juv_other_bi - juv_misd_bi - age_factor),
+                       data    = train.dat,
                        mtry    = 4 #this shouild be sqrt(p) since we're doing classification. In our case, p = 14.
                        ,importance=TRUE #keeping this from book
                        )
@@ -1102,7 +1082,7 @@ recid.rf =randomForest(formula = update(fullmodel, ~ . - priors_log- juv_fel_bi 
 The confusion matrix for our random forest created using training data is below:
 ```{r}
 kable(recid.rf$confusion)
-rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(trainval.dat)
+rf.error = (recid.rf$confusion[2,1] + recid.rf$confusion[1,2]) /nrow(train.dat)
 ```
 
 Surprisingly, this matrix shows that the overall accuracy rate for this random forest is ``r scales::percent(1 - rf.error, accuracy = 0.1)``, which is not substantially better than our other models.
@@ -1116,9 +1096,9 @@ varImpPlot(recid.rf, main="Variable Importance by Factor")
 
 We also plotted ROC curves for the random forest, as shown below.
 ```{r, warnings = FALSE}
-rf.predict <- as.data.frame(predict(recid.rf, trainval.dat, type = "prob"))
+rf.predict <- as.data.frame(predict(recid.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
-roccurve.rpart<- roc(response = trainval.dat$two_year_recid,
+roccurve.rpart<- roc(response = val.dat$two_year_recid,
                      predictor = rf.predict$Yes,
                      percent = TRUE)
 plot.roc(roccurve.rpart,
@@ -1132,7 +1112,25 @@ rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sen
 #rf.vals$specificity
 #rf.vals$sensitivity
 ```
-The Random Forest model is clearly superior to all of our other models, with an AUC of 94.6%.
+The Random Forest model does seem to be a reasonable classifier, on par with the logistic regression and LDA models.
+
+```{r, warnings = FALSE}
+rf.predict <- as.data.frame(predict(recid.rf, test.dat, type = "prob"))
+#Adapting code from other parts of the program
+roccurve.rpart<- roc(response = test.dat$two_year_recid,
+                     predictor = rf.predict$Yes,
+                     percent = TRUE)
+plot.roc(roccurve.rpart,
+         print.auc = TRUE,
+         print.thres = TRUE,
+         asp = 0,
+         print.thres.pattern = "%.3f (%.1f%%, %.1f%%)",
+         col = roccurve.rpart.col)
+rf.vals <- coords(roccurve.rpart, "best", ret=c("threshold", "specificity", "sensitivity"))
+#rf.vals$threshold
+#rf.vals$specificity
+#rf.vals$sensitivity
+```
 
 <span style ="color: red;">**Is this sentence needed?: "We then decided to pursue [which models should we use?]" Are we choosing the best model for non-violent recidivism before delving into violent recidivism? Or both best models are picked at the very end? Either way is fine by me! We should just explain that we're moving to violent recidivism models and maybe provide a link to the "Model Decisions" section?**</span> 
 
@@ -1426,11 +1424,11 @@ test.dat$response.recidvio <- (as.numeric(test.dat$vio_recid_2yr) - 1)
 #Predict and use the training data
 tree.pred.rpart.train   <- predict(reg.tree.recidvio, val.dat)
 #Create ROC curve
-roccurve.rpart<- roc(response = val.dat$response.recidvio,
+roccurve.rpart.vio <- roc(response = val.dat$response.recidvio,
                      predictor = tree.pred.rpart.train,
                      percent = TRUE)
 #Plot ROC -- still for training
-plot.roc(roccurve.rpart,
+plot.roc(roccurve.rpart.vio,
          print.auc = TRUE,
          print.thres = TRUE,
          print.thres.pattern = "%.3f\n(%.1f%%, %.1f%%)",
@@ -1448,7 +1446,7 @@ recid.vio.rf =randomForest(formula = update(fullmodelvio, ~ . -
                                               juv_misd_bi -
                                               juv_other_bi -
                                               age_factor),
-                           data    = trainval.dat,
+                           data    = train.dat,
                            mtry    = 4 #this should be sqrt(p) since we're doing classification. In our case, p = 14.
                            ,importance=TRUE #keeping this from book
 )
@@ -1456,7 +1454,7 @@ recid.vio.rf =randomForest(formula = update(fullmodelvio, ~ . -
 The confusion matrix for our random forest created using training data is below:
 ```{r}
 recid.vio.rf$confusion
-rf.vio.error = (recid.vio.rf$confusion[2,1] + recid.vio.rf$confusion[1,2]) /nrow(trainval.dat)
+rf.vio.error = (recid.vio.rf$confusion[2,1] + recid.vio.rf$confusion[1,2]) /nrow(train.dat)
 ```
 This matrix shows that the overall error rate for this random forest is ``r scales::percent(rf.vio.error, accuracy = 0.1)``.
 <span style ="color: red;"> The results below are very odd. Why does it show these vars are important, if they're not showing up in single decision tree? Just because trees are fickle (I forget the technical term)? </span>  
@@ -1467,10 +1465,10 @@ varImpPlot(recid.vio.rf, main="Variable Importance by Factor")
 
 We also plotted ROC curves for the random forest, as shown below.
 ```{r, warnings = FALSE}
-rf.vio.predict <- as.data.frame(predict(recid.vio.rf, trainval.dat, type = "prob"))
+rf.vio.predict <- as.data.frame(predict(recid.vio.rf, val.dat, type = "prob"))
 #Adapting code from other parts of the program
 ##Update this: two_year_recid news a violent equivalent
-roccurve.vio.rpart<- roc(response = trainval.dat$two_year_recid,
+roccurve.vio.rpart<- roc(response = val.dat$two_year_recid,
                          predictor = rf.vio.predict$Yes,
                          percent = TRUE)
 plot.roc(roccurve.vio.rpart,
@@ -1590,8 +1588,34 @@ Our final model for violent recidivism is...
 ```
 
 # **Section 3: Key Findings and Takeaways**  
-#### **3a: Comparing our tool to the COMPAS tool** 
-**3a.1: Does our RAIs perform better or worse than COMPAS?**      
+#### **3a: Comparing our tool to the COMPAS tool**  
+
+**3a.1: Does our RAIs perform better or worse than COMPAS?**    
+Below, the accuracy, sensitivity, and specificity rates are shown of the COMPAS model.  
+```{r, warning = FALSE, message = FALSE}
+#Create table
+confusions.compas.any = table(predicted = recid.new$score_factor, actual = recid.new$any_recid_2yr)
+dimnames(confusions.compas.any)[[1]] = c("No (Predicted)","Yes (Predicted)")
+kable(confusions.compas.any, caption = "Confusion matrix for the COMPAS: any recidivism")
+compas.acc <- sum(diag(confusions.compas.any)) / sum(confusions.compas.any)
+compas.sens <- confusions.compas.any["Yes (Predicted)", "Yes"] / sum(confusions.compas.any[,"Yes"])
+compas.spec <- confusions.compas.any["No (Predicted)", "No"] / sum(confusions.compas.any[,"No"])
+kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+      format = "markdown", caption = "Success of the COMPAS instrument")
+#Same for violent recidivism
+confusions.compas.vio = table(predicted = recid.new$v_score_factor, actual = recid.new$vio_recid_2yr)
+dimnames(confusions.compas.vio)[[1]] = c("No (Predicted)","Yes (Predicted)")
+kable(confusions.compas.vio, caption = "Confusion matrix for the COMPAS: violent recidivism")
+compas.acc <- sum(diag(confusions.compas.vio)) / sum(confusions.compas.vio)
+compas.sens <- confusions.compas.vio["Yes (Predicted)", "Yes"] / sum(confusions.compas.vio[,"Yes"])
+compas.spec <- confusions.compas.vio["No (Predicted)", "No"] / sum(confusions.compas.vio[,"No"])
+kable(tibble(Accuracy = scales::percent(compas.acc, accuracy = 0.1),
+             Sensitivity = scales::percent(compas.sens, accuracy = 0.1),
+             Specificity = scales::percent(compas.spec, accuracy = 0.1)),
+      format = "markdown", caption = "Success of the COMPAS instrument")
+```
 **3a.2: Do our RAIs produce similar classifications to COMPAS?**   
 **3a.3: Are there systematic differences between our classifications and those of COMPAS?**   
 #### **3b: Reflections on risk assessment tools**   
@@ -1687,3 +1711,7 @@ kable(recid.all %>%
 kable(recid.all %>%
         count(race_factor, race))
 ```
+
+
+<span style ="color: red;"> Just a reminder that this should be moved to before model picking, or if we are keeping it at the very end, this should be explained and the table specifically for violent-recidivism should be pasted below this section.</span> 
+
