@@ -1,7 +1,4 @@
-# Recidivism Prediction and Bias
-#### May 2020
-#### Final project for data mining course at Carnegie Mellon University, taught by Diane Igoche
-#### Contributors: moses-h, sormehyazdi, kaylareiman1
+# Bias in Recidivism Predictions
 
 ## Report
 Our final R Markdown file is called Recidivism_Master.Rmd. It is accompanied by html output. 
@@ -15,4 +12,8 @@ We show in this report that with fewer variables, data mining tools available to
 ## ProPublica Resources
 [ProPublica main article]( https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing)  
 [ProPublica methodology]( https://www.propublica.org/article/how-we-analyzed-the-compas-recidivism-algorithm)  
-[ProPublica github]( https://github.com/propublica/compas-analysis)  
+[ProPublica github repo]( https://github.com/propublica/compas-analysis) 
+
+## Course and Contributors
+This is our final project for the Heinz College course on Data Mining (95791), offered in Spring 2020. We are grateful to Dr. Diane Igoche for teaching us and to the ProPublica authors who wrote original article.
+Contributors: moses-h, sormehyazdi, kaylareiman1
