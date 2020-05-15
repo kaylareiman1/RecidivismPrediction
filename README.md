@@ -1,7 +1,11 @@
-# Recidivism Prediction
+# Recidivism Prediction and Bias
+#### May 2020
+#### Final project for data mining course at Carnegie Mellon University, taught by Diane Igoche
+#### Contributors: moses-h, sormehyazdi, kaylareiman1
 
 ## Report
-Our final R Markdown file is called Recidivism_Master.Rmd. It is accompanied by html output. Original versions of these files, showing a full history of commits are located in the prg folder.
+Our final R Markdown file is called Recidivism_Master.Rmd. It is accompanied by html output. 
+These files are also included in the "prg" folder.
 
 ## Summary
 In 2016, ProPublica published a story on how a commonly-used pre-trial risk assessment tool called the COMPAS is racially biased. The journalists showed that in spite of a 2009 validation study showing similar accuracy rates for black and white men (67 percent versus 69 percent), the inaccuracies were in opposite directions for the two groups. Our goal was to investigate whether we could use tools learned in Professor Igoche's data mining course to create Risk Assessment Instrument (RAI) that was more accurate and less racist than the COMPAS.
