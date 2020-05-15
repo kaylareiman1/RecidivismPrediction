@@ -1,6 +1,6 @@
 # Bias in Recidivism Predictions
 
-## Report
+## Files
 Our final R Markdown file is called Recidivism_Master.Rmd. It is accompanied by html output. These files are also located in the `prg` folder.
 
 ## Summary
