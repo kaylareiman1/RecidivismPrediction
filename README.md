@@ -14,5 +14,6 @@ We show in this report that with fewer variables, data mining tools available to
 [ProPublica github repo]( https://github.com/propublica/compas-analysis) 
 
 ## Course and Contributors
-This is our final project for the Heinz College course on Data Mining (95791), offered in Spring 2020. We are grateful to Dr. Diane Igoche for teaching us and to the ProPublica authors who wrote original article.
-Contributors: moses-h, sormehyazdi, kaylareiman1
+This is our final project for the Heinz College course on Data Mining (95791), offered in Spring 2020. Information about project specifications can be found in the `Directions` folder. We are grateful to Dr. Diane Igoche for teaching us and to the ProPublica authors who wrote original article.  
+
+Project authors: moses-h, sormehyazdi, kaylareiman1
